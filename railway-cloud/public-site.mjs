@@ -25,7 +25,8 @@ export function publicPage(path) {
     <meta name="description" content="TOKNADO is a managed model pool with one OpenAI-compatible endpoint for your AI tools."><link rel="icon" href="/favicon.ico?v=toknado-1">
     <link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/cloud.css"></head>
     <body class="public"><header><a class="brand" href="/"><span class="brand-mark">◉</span> TOK<span>NADO</span></a>
-    <nav aria-label="Main"><a href="/pricing">Pricing</a><a href="/setup">API guide</a><a href="${repo}" class="github-link">${github} GitHub</a><a href="/login">Sign in</a><a class="nav-join" href="/register">Start free</a></nav></header>
+    <button class="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation">Menu ☰</button>
+    <nav id="primary-navigation" aria-label="Main"><a href="/pricing">Pricing</a><a href="/setup">API guide</a><a href="${repo}" class="github-link">${github} GitHub</a><a href="/login">Sign in</a><a class="nav-join" href="/register">Start free</a></nav></header>
     <main>${pricing?'':hero}<section class="plan-section"><${pricing?'h1':'h2'}>Monthly plans</${pricing?'h1':'h2'}>
     <p>Choose your hourly limit. Pay securely with Stripe and get your API key by email. All prices are in USD and renew monthly.</p>
     <div class="plan-grid">${plans.map(planCard).join('')}</div><p id="checkout-status" role="status"></p>
@@ -40,6 +41,17 @@ export function publicPage(path) {
     </main><footer><span class="brand">◉ TOK<span>NADO</span></span><span>Operated by Aaron Wise AI · Independent service. <a href="mailto:${encodeURIComponent(support)}">Contact support</a> <a href="${repo}" class="github-link">${github} GitHub</a></span></footer>
     <script>
     const choices = [...document.querySelectorAll('[data-plan]')];
+    const nav = document.querySelector('header nav');
+    const mobileMenu = document.querySelector('.mobile-nav-toggle');
+    mobileMenu?.addEventListener('click', () => {
+      const open = nav.classList.toggle('mobile-open');
+      mobileMenu.setAttribute('aria-expanded', String(open));
+    });
+    nav?.addEventListener('click', event => {
+      if (!event.target.closest('a')) return;
+      nav.classList.remove('mobile-open');
+      mobileMenu?.setAttribute('aria-expanded', 'false');
+    });
     fetch('/portal/session').then(r=>r.json()).then(session=>{if(!session.signedIn)return;const nav=document.querySelector('header nav');nav.querySelectorAll('a[href="/login"],a[href="/register"]').forEach(a=>a.remove());const account=document.createElement('a');account.href=session.admin?'/dashboard':'/account';account.textContent=session.admin?'Admin dashboard':'My account';nav.append(account);const signout=document.createElement('button');signout.type='button';signout.textContent='Sign out';signout.onclick=async()=>{const r=await fetch('/portal/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(r.ok)location.reload()};nav.append(signout);document.querySelectorAll('details a[href="/login"]').forEach(a=>{a.href=account.href;a.textContent=account.textContent})}).catch(()=>{});
     for (const choice of choices) choice.onclick = async () => {
       const status = document.getElementById('checkout-status');
