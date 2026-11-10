@@ -123,7 +123,7 @@ export function accounts(db, defaultLimit) {
       const now=Date.now();db.exec('BEGIN IMMEDIATE');
       try {
         if(!query('SELECT id FROM users WHERE id=? AND disabled=0').get(uid)||query('SELECT 1 FROM account_trials WHERE uid=?').get(uid)){db.exec('ROLLBACK');return null;}
-        const key=issue(uid,750);
+        const key=issue(uid,250);
         query('UPDATE api_keys SET expires=? WHERE hash=?').run(now+72*hour,digest(key));
         query('INSERT INTO account_trials VALUES(?,?)').run(uid,now);
         db.exec('COMMIT');return {key,expires:now+72*hour};

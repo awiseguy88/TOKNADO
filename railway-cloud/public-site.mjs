@@ -18,7 +18,7 @@ export function publicPage(path) {
   const pricing = path === '/pricing';
   const hero = `<section class="front-hero"><div><span class="storm-kicker">OPENAI-COMPATIBLE GATEWAY</span><h1>Unleash the<br><em>token storm.</em></h1>
     <p>One resilient endpoint for your AI tools. TOKNADO intelligently routes every request through a managed pool of models, with transparent usage in your Storm Console.</p>
-    <div class="actions"><a class="primary" href="/pricing">Start your storm <span>→</span></a><a href="/setup">Explore the API</a></div><div class="storm-proof">● Managed model pool &nbsp;&nbsp; ◇ OpenAI-compatible &nbsp;&nbsp; ⚡ Built for builders</div></div>
+    <div class="actions"><a class="primary" href="/pricing">Start your storm <span>→</span></a><a href="/setup">View setup guide</a></div><div class="storm-proof">● Managed model pool &nbsp;&nbsp; ◇ OpenAI-compatible &nbsp;&nbsp; ⚡ Built for builders</div></div>
     <div class="hero-art"><img src="/portal/cover.jpg" alt="Animated TOKNADO storm mascot" width="1200" height="675"><div class="hero-orbit"></div></div></section>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${pricing?'Monthly API plans':'Unleash the token storm'} | TOKNADO</title>
@@ -26,7 +26,7 @@ export function publicPage(path) {
     <link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/cloud.css"></head>
     <body class="public"><header><a class="brand" href="/"><span class="brand-mark">◉</span> TOK<span>NADO</span></a>
     <button class="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation">Menu ☰</button>
-    <nav id="primary-navigation" aria-label="Main"><a href="/pricing">Pricing</a><a href="/setup">API guide</a><a href="${repo}" class="github-link">${github} GitHub</a><a href="/login">Sign in</a><a class="nav-join" href="/register">Start free</a></nav></header>
+    <nav id="primary-navigation" aria-label="Main"><a href="/pricing">Pricing</a><a href="/setup">Setup guide</a><a href="${repo}" class="github-link">${github} GitHub</a><a href="/login">Sign in</a><a class="nav-join" href="/register">Start free</a></nav></header>
     <main>${pricing?'':hero}<section class="plan-section"><${pricing?'h1':'h2'}>Monthly plans</${pricing?'h1':'h2'}>
     <p>Choose your hourly limit. Pay securely with Stripe and get your API key by email. All prices are in USD and renew monthly.</p>
     <div class="plan-grid">${plans.map(planCard).join('')}</div><p id="checkout-status" role="status"></p>
@@ -35,7 +35,7 @@ export function publicPage(path) {
     <li><strong>Complete checkout</strong><p>Use an email address you can access.</p></li>
     <li><strong>Open your dashboard</strong><p>New customers choose a password after payment. Your email also includes sign-in details.</p></li>
     <li><strong>Connect your tool</strong><p>Paste your API key and endpoint into an OpenAI-compatible client. TOKNADO routes requests through its managed model pool.</p></li></ol></section>
-    <section><h2>Before you buy</h2><details><summary>Can I try the endpoint first?</summary><p>The setup guide offers a three-day trial with up to 750 requests per rolling hour.</p></details>
+    <section><h2>Before you buy</h2><details><summary>Can I try the endpoint first?</summary><p>The setup guide offers a three-day trial with up to 250 requests per rolling hour.</p></details>
     <details><summary>Already have a TOKNADO account?</summary><p>Sign in before buying to add the subscription to your existing account.</p><a href="/login">Sign in</a></details>
     <details><summary>How does the hourly limit work?</summary><p>The limit applies over the previous 60 minutes. Upstream availability can reduce throughput. Service is best effort.</p></details></section>
     </main><footer><span class="brand">◉ TOK<span>NADO</span></span><span>Operated by Aaron Wise AI · Independent service. <a href="mailto:${encodeURIComponent(support)}">Contact support</a> <a href="${repo}" class="github-link">${github} GitHub</a></span></footer>

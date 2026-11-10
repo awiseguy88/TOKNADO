@@ -107,7 +107,7 @@ function guide(){
   api('/portal/session').then(s=>{if(!s.signedIn)return;nav.querySelectorAll('a[href="/login"],a[href="/register"]').forEach(a=>a.remove());link(nav,s.admin?'Admin dashboard':'My account',s.admin?'/dashboard':'/account');signOut()}).catch(()=>{});
   const p=el('section',undefined,'panel');content.append(p);p.append(el('h2','Connect any OpenAI-compatible tool'),el('p','Set the base URL to the endpoint below and use your assigned API key. TOKNADO intelligently routes requests through its managed model pool.'),el('h3','Endpoint URL'),el('code',location.origin+'/v1'),el('h3','Routing'),el('code','Managed model pool'));
   const trial=el('section',undefined,'panel');content.append(trial);
-  trial.append(el('h2','Try the service'),el('p','One three-day trial per browser, up to 750 requests per rolling hour.'));
+  trial.append(el('h2','Try the service'),el('p','One three-day trial per browser, up to 250 requests per rolling hour.'));
   const renderKey=key=>{
     const label=el('label','Your trial API key'),input=el('input');input.type='password';input.readOnly=true;input.value=key;label.append(input);trial.append(label);
     const show=button(trial,'Show key',()=>{input.type=input.type==='password'?'text':'password';show.textContent=input.type==='password'?'Show key':'Hide key'},true);
