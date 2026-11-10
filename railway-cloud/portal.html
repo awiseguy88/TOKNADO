@@ -10,7 +10,7 @@ a{color:#b9f477}h1{letter-spacing:-.04em;margin:.4em 0;font-size:clamp(28px,5vw,
 body{min-height:100svh;background:#111821;isolation:isolate}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(90deg,#0b1119f5,#101925d6 54%,#111a2570),var(--portal-art) center/cover no-repeat}
 header{max-width:none;padding:14px max(24px,calc((100vw - 1120px)/2));background:#101620ed;border-color:#8995aa3b}
-header strong{letter-spacing:-.035em}header strong span{font-weight:450;color:#afc7d4}
+header strong{letter-spacing:-.035em;color:#fff;font-weight:850}header strong span{font-weight:850;color:#ffcb3d}
 main{max-width:1168px}.panel{background:#111a25f7;border-color:#566376;border-radius:12px}
 a{color:#ffbf8c}button{background:#ffc08b;color:#28180b}button:hover{filter:brightness(1.08)}
 body.auth::before{background:linear-gradient(90deg,#101620 4%,#101620fa 28%,#101620bc 42%,transparent 67%),var(--portal-art) right center/min(81vw,1750px) auto no-repeat,#101620}
@@ -37,7 +37,7 @@ a,#message{color:var(--accent)}:root[data-theme="light"] a,:root[data-theme="lig
 <p role="status" id="mailStatus"></p><div class="actions"><button type="submit">Send request</button><button type="button" class="secondary" id="cancelRequest">Cancel</button></div>
 </form></dialog>
 <section id="issued" class="panel key-reveal" hidden><h2>API key created</h2><p id="issuedMeta">Copy this key now. The full value is only available at creation time.</p><label>Full API key<input class="secret" id="secret" readonly></label><button id="copy">Copy key</button></section>
-</main><script>
+</main><footer class="portal-footer"><div><strong>◉ TOK<span>NADO</span></strong><p>OpenAI-compatible AI infrastructure for builders.</p></div><nav aria-label="Footer"><a href="/">Home</a><a href="/pricing">Pricing</a><a href="/setup">Setup guide</a><a href="https://github.com/awiseguy88/TOKNADO" target="_blank" rel="noopener">GitHub</a></nav><nav aria-label="Social links"><a href="https://www.linkedin.com/in/aaron-wise-31b00349/" target="_blank" rel="noopener">LinkedIn</a><a href="https://x.com/AaronWiseAI" target="_blank" rel="noopener">X</a><a href="https://www.threads.net/@open.clawsetup" target="_blank" rel="noopener">Threads</a></nav><small>© 2026 Aaron Wise AI</small></footer><style>.portal-footer{max-width:1168px;margin:32px auto 0;padding:28px 24px;border-top:1px solid var(--border);display:grid;grid-template-columns:2fr 1fr 1fr;gap:20px;color:var(--muted)}.portal-footer strong{color:#fff;font-size:20px;font-weight:850}.portal-footer strong span{color:#ffcb3d}.portal-footer p{margin:8px 0}.portal-footer nav{display:grid;gap:8px;justify-items:start}.portal-footer small{grid-column:1/-1;border-top:1px solid var(--border);padding-top:16px}@media(max-width:700px){.portal-footer{grid-template-columns:1fr 1fr}.portal-footer>div{grid-column:1/-1}}</style><script>
 const $=id=>document.getElementById(id), path=location.pathname;
 if(location.protocol==='file:') document.documentElement.style.setProperty('--portal-art','url("./assets/toknado-hero.gif")');
 const content=$('content'), nav=$('nav');
