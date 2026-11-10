@@ -177,7 +177,11 @@ export function accounts(db, defaultLimit) {
     welcomeFailed(sub,attempts){query('UPDATE welcome_mail SET attempts=attempts+1,retry_at=? WHERE sub=?').run(Date.now()+Math.min(hour,30000*2**Math.min(attempts,7)),sub);},
     async register(username,password,email) {
       const result=insertUser.run(username,await passwordHash(password),defaultLimit,Date.now());
-      if(result.changes&&email)query('UPDATE users SET email=? WHERE id=?').run(email,result.lastInsertRowid);
+      if(result.changes&&email){
+        query('UPDATE users SET email=? WHERE id=?').run(email,result.lastInsertRowid);
+        const payload=protect(JSON.stringify({kind:'registration',email,username}));
+        query('INSERT INTO welcome_mail(sub,payload) VALUES(?,?)').run('registration/'+result.lastInsertRowid,payload);
+      }
       return result.changes;
     },
     createReset(email,username){
@@ -225,6 +229,7 @@ export function accounts(db, defaultLimit) {
     logout(token) { query('DELETE FROM sessions WHERE hash=?').run(digest(token)); },
     user(id) { const row=query(view+' WHERE id=?').get(Date.now()-hour,id); if(!row) return null; const result=summary(row); result.keys=result.keys.map(k=>({...k,key:reveal(query('SELECT secret FROM api_keys WHERE id=?').get(k.id)?.secret)})); return result; },
     list() { return query(view+' ORDER BY username').all(Date.now()-hour).map(summary); },
+    registeredUsers() { return query('SELECT count(*) AS n FROM users').get().n; },
     defaultLimit,
     paidInvoice(p){
       db.exec('BEGIN IMMEDIATE');

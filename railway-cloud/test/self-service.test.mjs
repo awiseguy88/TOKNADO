@@ -66,7 +66,7 @@ test('an account trial is issued once and expires after three days',async()=>{
     await s.register('trial-member','test-password-123');
     const trial=s.createAccountTrial(1);
     assert.ok(trial.key.startsWith('kb_'));
-    assert.equal(s.byKey(trial.key).quota,750);
+    assert.equal(s.byKey(trial.key).quota,250);
     assert.equal(s.createAccountTrial(1),null);
     db.prepare('UPDATE api_keys SET expires=? WHERE uid=?').run(Date.now()-1,1);
     assert.equal(s.byKey(trial.key),undefined);

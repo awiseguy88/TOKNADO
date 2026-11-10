@@ -91,6 +91,7 @@ export async function portal(req,res,path,store,readJson,json) {
     return send({...store.user(session.uid),supportEmail:supportEmail(),recoveryEmail:store.recoveryEmail(session.uid),temporary:session.temporary,paidUntil:subscription?.paid_until||null,invoices});
   }
   if(req.method==='GET' && path==='/portal/users') return session?.admin ? send(store.list()) : fail(403,'Admin sign-in required.');
+  if(req.method==='GET' && path==='/portal/user-count') return session?.admin ? send({total:store.registeredUsers()}) : fail(403,'Admin sign-in required.');
   if(req.method==='GET' && path==='/portal/payments') return session?.admin ? send(store.payments()) : fail(403,'Admin sign-in required.');
   if(req.method==='GET' && path==='/portal/sales') return session?.admin ? send(store.salesStats()) : fail(403,'Admin sign-in required.');
   if(req.method==='GET' && path==='/portal/audit') return session?.admin ? send(store.auditLog()) : fail(403,'Admin sign-in required.');
@@ -173,7 +174,7 @@ export async function portal(req,res,path,store,readJson,json) {
       if(typeof username!=='string' || !/^[a-zA-Z0-9_-]{3,32}$/.test(username)) return fail(400,'Use 3–32 letters, numbers, underscores or hyphens for your username.');
       if(path==='/portal/register') {
         if(password.length<10) return fail(400,'Use at least 10 characters for your password.');
-        if(data.email!==undefined&&(typeof data.email!=='string'||data.email.length>254||!/^\S+@\S+\.\S+$/.test(data.email)))return fail(400,'Enter a valid email address.');
+        if(typeof data.email!=='string'||data.email.length>254||!/^\S+@\S+\.\S+$/.test(data.email))return fail(400,'Enter a valid email address.');
         if(!await store.register(username,password,data.email?.trim().toLowerCase())) return fail(409,'Username unavailable.');
       }
       uid=await store.login(username,password);
