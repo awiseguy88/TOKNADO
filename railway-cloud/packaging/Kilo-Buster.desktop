@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=TOKNADO
+Icon=toknado
+Exec=sh -c "cd \"$(dirname \"$1\")\" && exec ./start.sh" sh %k
+Terminal=true
+Categories=Development;

@@ -1,0 +1,295 @@
+import http from 'node:http';
+import { publicPage } from './public-site.mjs';
+import { applyStripeEvent } from './billing.mjs';
+import { welcomeMailer } from './welcome.mjs';
+import { DatabaseSync, backup } from 'node:sqlite';
+import { readFile, writeFile, rename, mkdtemp, unlink, rmdir } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { ProxyAgent } from 'undici';
+import { accounts } from './accounts.mjs';
+import { browserWrite, portal, sessionToken } from './portal.mjs';
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const PORT = Number(process.env.PORT || 43817), HOST = process.env.HOST || '0.0.0.0';
+const MODEL = 'toknado/auto', UPSTREAM_MODEL = 'kilo-auto/free', UPSTREAM = 'https://ai-gateway.kilo.ai/api/v1/chat/completions';
+const KILO_API_KEY = process.env.KILO_API_KEY || '';
+const STATE_FILE = process.env.PROXY_STATE_FILE || join(process.env.RAILWAY_VOLUME_MOUNT_PATH || ROOT, 'proxy-health-state.json');
+const PROXY_SOURCE = 'https://aaronwiseai.com/aidocs/prox.txt';
+let importing = false;
+let proxies = [], saveTimer = null;
+const agents = new Map();
+const HOUR = 60 * 60 * 1000;
+const requestedLimit = Number(process.env.PROXY_REQUESTS_PER_HOUR ?? 149);
+if (!Number.isSafeInteger(requestedLimit) || requestedLimit < 1) throw Error('PROXY_REQUESTS_PER_HOUR must be a positive integer.');
+const MAX_PER_HOUR = Math.min(149, requestedLimit);
+const BACKOFF_BASE = Number(process.env.PROXY_BACKOFF_SECONDS || 5) * 1000;
+const tokenDb = new DatabaseSync(STATE_FILE + '.tokens.sqlite');
+const store = accounts(tokenDb,Number(process.env.DEFAULT_REQUESTS_PER_HOUR ?? 30));
+const deliverWelcome = welcomeMailer(store);
+if(process.env.KILO_BUSTER_TEST !== '1') setInterval(deliverWelcome,30000).unref();
+tokenDb.exec('CREATE TABLE IF NOT EXISTS totals (id INTEGER PRIMARY KEY, input INTEGER NOT NULL, output INTEGER NOT NULL); INSERT OR IGNORE INTO totals VALUES (1,0,0)');
+const addUsage = tokenDb.prepare('UPDATE totals SET input=input+?, output=output+? WHERE id=1');
+const getUsage = tokenDb.prepare('SELECT input, output FROM totals WHERE id=1');
+tokenDb.exec('CREATE TABLE IF NOT EXISTS proxy_window (address TEXT PRIMARY KEY, attempts TEXT NOT NULL)');
+const readWindow = tokenDb.prepare('SELECT attempts FROM proxy_window WHERE address=?');
+const writeWindow = tokenDb.prepare('INSERT OR REPLACE INTO proxy_window VALUES (?,?)');
+
+function reserveAttempt(proxy, now) {
+  const address = proxy.url.host;
+  tokenDb.exec('BEGIN IMMEDIATE');
+  try {
+    const row = readWindow.get(address);
+    const attempts = (row ? JSON.parse(row.attempts) : proxy.requests).filter(t => t > now - HOUR);
+    const allowed = attempts.length < MAX_PER_HOUR;
+    if (allowed) attempts.push(now);
+    writeWindow.run(address, JSON.stringify(attempts));
+    tokenDb.exec('COMMIT');
+    proxy.requests = attempts;
+    return allowed;
+  } catch (error) {
+    tokenDb.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+async function forwardBody(upstream, res, uid) {
+  let pending = '', usage;
+  const decoder = new TextDecoder();
+  const stream = upstream.headers.get('content-type')?.includes('text/event-stream');
+  function inspect(line) {
+    if (!line.includes('"usage"')) return;
+    try {
+      const value = JSON.parse(line).usage;
+      if (value && Number.isSafeInteger(value.prompt_tokens) && value.prompt_tokens >= 0 &&
+          Number.isSafeInteger(value.completion_tokens) && value.completion_tokens >= 0) usage = value;
+    } catch {}
+  }
+  function parseLines() {
+    let end;
+    while ((end = pending.indexOf('\n')) >= 0) {
+      const line = pending.slice(0, end);
+      pending = pending.slice(end + 1);
+      if (line.startsWith('data:')) inspect(line.slice(5));
+    }
+  }
+  for await (const chunk of upstream.body) {
+    res.write(chunk);
+    pending += decoder.decode(chunk, {stream:true});
+    if (stream) parseLines();
+  }
+  pending += decoder.decode();
+  if (stream) { pending += '\n'; parseLines(); } else inspect(pending);
+  if (usage) {
+    try { addUsage.run(usage.prompt_tokens, usage.completion_tokens); store.recordTokens(uid,usage.prompt_tokens,usage.completion_tokens); }
+    catch (error) { console.error('[tokens] unable to persist usage:', error.message); }
+  }
+}
+function parseProxy(line) {
+  const value = line.trim();
+  if (!value || value.startsWith('#')) return null;
+  try {
+    const url = new URL(value.includes('://') ? value : `http://${value}`);
+    return ['http:', 'https:'].includes(url.protocol) && url.hostname && url.port && !url.pathname.replace('/', '') && !url.search && !url.hash ? url : null;
+  } catch { return null; }
+}
+async function importProxies() {
+  if (importing) throw new Error('A proxy import is already in progress.');
+  importing = true;
+  try {
+    const response = await fetch(PROXY_SOURCE, { signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error(`Proxy source returned HTTP ${response.status}.`);
+    const text = await response.text();
+    if (text.length > 5_000_000) throw new Error('Proxy list is too large.');
+    let saved = {}; try { saved = JSON.parse(await readFile(STATE_FILE, 'utf8')); } catch {}
+    const old = new Map((saved.proxies || []).map(p => [p.address, p]));
+    const seen = new Set(proxies.map(p => p.url.host));
+    let added = 0, duplicates = 0, invalid = 0;
+    for (const line of text.split(/\r\n|[\r\n]/)) {
+      if (!line.trim() || line.trim().startsWith('#')) continue;
+      const url = parseProxy(line);
+      if (!url) { invalid++; continue; }
+      if (seen.has(url.host)) { duplicates++; continue; }
+      const previous = old.get(url.host) || {};
+      const p = { id: proxies.length + 1, active: 0, url, latencyMs: Number(previous.latencyMs) || 0, requests: Array.isArray(previous.requests) ? previous.requests.filter(t => Date.now() - t < HOUR) : [], successes: Number(previous.successes) || 0, failures: Number(previous.failures) || 0, consecutiveFailures: Number(previous.consecutiveFailures) || 0, backoffUntil: Number(previous.backoffUntil) || 0, lastError: previous.lastError || '', lastUsed: Number(previous.lastUsed) || 0 };
+      const row = readWindow.get(url.host); if (row) p.requests = JSON.parse(row.attempts);
+      agents.set(url.href, new ProxyAgent(url.href));
+      proxies.push(p); seen.add(url.host); added++;
+    }
+    return { added, duplicates, invalid, total: proxies.length };
+  } finally { importing = false; }
+}
+function scheduleSave() { if (saveTimer) return; saveTimer = setTimeout(async () => { saveTimer = null; const data = { savedAt: new Date().toISOString(), proxies: proxies.map(p => ({ address: `${p.url.hostname}:${p.url.port || 80}`, latencyMs: p.latencyMs, requests: p.requests, successes: p.successes, failures: p.failures, consecutiveFailures: p.consecutiveFailures, backoffUntil: p.backoffUntil, lastError: p.lastError, lastUsed: p.lastUsed })) }; const temp = `${STATE_FILE}.tmp`; try { await writeFile(temp, JSON.stringify(data), 'utf8'); await rename(temp, STATE_FILE); } catch (e) { console.error(`[state] unable to save ${STATE_FILE}: ${e.message}`); } }, 100); }
+function prune(proxy, now = Date.now()) { proxy.requests = proxy.requests.filter(t => now - t < HOUR); }
+function available(proxy, now = Date.now()) { prune(proxy, now); return proxy.backoffUntil <= now && proxy.requests.length < MAX_PER_HOUR; }
+function proxyStats(proxy) { const now = Date.now(); prune(proxy, now); return { id: proxy.id, active: proxy.active, latencyMs: proxy.latencyMs || null, address: `${proxy.url.hostname}:${proxy.url.port || 80}`, requestsLastHour: proxy.requests.length, remaining: Math.max(0, MAX_PER_HOUR - proxy.requests.length), successes: proxy.successes, failures: proxy.failures, consecutiveFailures: proxy.consecutiveFailures, backoffSeconds: Math.max(0, Math.ceil((proxy.backoffUntil - now) / 1000)), lastError: proxy.lastError, lastUsed: proxy.lastUsed ? new Date(proxy.lastUsed).toISOString() : null }; }
+function pickProxy() {
+  const now = Date.now();
+  let selected = null;
+  let bestScore = Infinity;
+  for (const proxy of proxies) {
+    if (!available(proxy, now)) continue;
+    // Keep connections pooled, but choose a healthy proxy per request so
+    // slow or saturated endpoints cannot hold an entire request batch.
+    const score = proxy.active * 10000000 + (proxy.latencyMs ? Math.min(9998,Math.floor(proxy.latencyMs/1000))*1000 : 9999000) + (proxy.shuffleRank ?? 0);
+    if (score < bestScore || (score === bestScore && proxy.lastUsed < (selected?.lastUsed || Infinity))) {
+      bestScore = score;
+      selected = proxy;
+    }
+  }
+  if (!selected) return null;
+  if (!reserveAttempt(selected, now)) return pickProxy();
+  prune(selected, now);
+  selected.active++;
+  selected.lastUsed = now;
+  scheduleSave();
+  return selected;
+}
+function markSuccess(proxy) { proxy.successes++; proxy.consecutiveFailures = 0; proxy.backoffUntil = 0; proxy.lastError = ''; scheduleSave(); }
+function markUpstreamLimit(proxy) { markFailure(proxy,'Upstream rate limit (HTTP 429); scope may be account or model'); }
+function markFailure(proxy, error) { proxy.failures++; proxy.consecutiveFailures++; proxy.backoffUntil = Date.now() + Math.min(15 * 60 * 1000, BACKOFF_BASE * 2 ** Math.min(proxy.consecutiveFailures - 1, 8)); proxy.lastError = String(error?.message || error).slice(0, 240); scheduleSave(); }
+function cors(res) { res.setHeader('access-control-allow-origin','*'); res.setHeader('access-control-allow-methods','GET, POST, OPTIONS'); res.setHeader('access-control-allow-headers','Content-Type, Authorization'); }
+function json(res, status, data) { res.writeHead(status, {'content-type':'application/json'}); res.end(JSON.stringify(data)); }
+function responseHeaders(upstream) {
+  const headers=Object.fromEntries(upstream.headers);
+  const hop=['connection','keep-alive','proxy-authenticate','proxy-authorization','te','trailer','transfer-encoding','upgrade','content-encoding','content-length'];
+  for(const name of (headers.connection||'').split(',')) if(name.trim()) delete headers[name.trim().toLowerCase()];
+  for(const name of hop) delete headers[name];
+  return headers;
+}
+async function readJson(req,limit=4*1024*1024) {
+  const chunks=[]; let size=0;
+  for await (const chunk of req) {
+    const buf=Buffer.from(chunk); size+=buf.length;
+    if(size>limit) throw Error('Body too large');
+    chunks.push(buf);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString());
+}
+async function readRaw(req,limit=2*1024*1024) { const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>limit)throw Error('Body too large');chunks.push(Buffer.from(chunk));}return Buffer.concat(chunks); }
+function stripeSignatureValid(raw,header,secret){
+  if(typeof header!=='string'||!secret)return false;
+  const fields=header.split(',').map(s=>s.trim().split('='));
+  const stamp=fields.find(([k])=>k==='t')?.[1];
+  if(!/^\d+$/.test(stamp)||Math.abs(Date.now()/1000-Number(stamp))>300)return false;
+  const signature=createHmac('sha256',secret).update(stamp+'.').update(raw).digest();
+  return fields.some(([k,v])=>k==='v1'&&/^[a-f0-9]{64}$/i.test(v)&&timingSafeEqual(signature,Buffer.from(v,'hex')));
+}
+async function handler(req, res) {
+  const requestUrl = new URL(req.url,'http://localhost'), path = requestUrl.pathname;
+  res.setHeader('cache-control','no-store');
+  res.setHeader('referrer-policy','no-referrer');
+  res.setHeader('x-frame-options','DENY');
+  if(req.method==='GET' && path==='/healthz') return json(res,200,{status:'ok'});
+  if(req.method==='GET' && path==='/favicon.ico'){
+    res.writeHead(200,{'content-type':'image/x-icon','cache-control':'public, max-age=3600'});
+    return res.end(await readFile(join(ROOT,'assets/toknado.ico')));
+  }
+  if(req.method==='GET' && (path==='/cloud.css'||path==='/portal/cover.jpg')){
+    const css=path==='/cloud.css';
+    res.writeHead(200,{'content-type':css?'text/css':'image/jpeg','cache-control':'public, max-age=300'});
+    return res.end(await readFile(join(ROOT,css?'cloud.css':'assets/toknado-hero.gif')));
+  }
+  if(req.method==='GET' && ['/', '/pricing'].includes(path)){
+    res.writeHead(200,{'content-type':'text/html; charset=utf-8'});
+    return res.end(publicPage(path));
+  }
+  if(path==='/stripe/webhook' && req.method==='POST') {
+    const raw=await readRaw(req); if(!stripeSignatureValid(raw,req.headers['stripe-signature'],process.env.STRIPE_WEBHOOK_SECRET)) return json(res,400,{error:{message:'Invalid Stripe signature.'}});
+    let event;try{event=JSON.parse(raw)}catch{return json(res,400,{error:{message:'Invalid webhook payload.'}})}
+    try{applyStripeEvent(event,store)}catch(error){store.operationalEvent('webhook_processing_failed');throw error}
+    void deliverWelcome();
+    return json(res,200,{received:true});
+  }
+  if(req.method==='GET' && /^\/(?:admin\/)?theme\.(css|js)$/.test(path)){
+    const file=path.split('/').pop();
+    res.writeHead(200,{'content-type':file.endsWith('.css')?'text/css':'text/javascript'});
+    return res.end(await readFile(join(ROOT,file)));
+  }
+  if (['/','/admin','/account','/admin/users','/login','/register','/reset','/setup','/welcome'].includes(path) || path.startsWith('/portal/')) {
+    return portal(req,res,path,store,readJson,json);
+  }
+  const adminRoute=['/dashboard','/api/proxies/import','/api/proxies/shuffle','/api/admin/backup','/health/stats','/admin/allocation','/admin/monitoring','/admin/monitoring/email'].includes(path);
+  let key,user;
+  if(adminRoute) {
+    if(!store.session(sessionToken(req))?.admin) {
+      if(path==='/dashboard') return res.writeHead(303,{location:'/admin'}).end();
+      return json(res,403,{error:{message:'Admin sign-in required.'}});
+    }
+    if(req.method==='POST' && !browserWrite(req)) return json(res,403,{error:{message:'Same-site JSON required.'}});
+    if(path==='/admin/monitoring' && req.method==='GET') {
+      const active=proxies.filter(p=>available(p)).length, status=store.operationalStatus();
+      return json(res,200,{activeProxies:active,loadedProxies:proxies.length,emailEnabled:store.monitoringEmailEnabled(),emailConfigured:Boolean(process.env.ALERT_EMAIL&&process.env.RESEND_API_KEY&&process.env.USAGE_EMAIL_FROM),...status});
+    }
+    if(path==='/admin/monitoring/email' && req.method==='POST') { let body;try{body=await readJson(req,2048)}catch{return json(res,400,{error:{message:'Invalid request.'}})}if(typeof body?.enabled!=='boolean')return json(res,400,{error:{message:'A boolean enabled value is required.'}});store.setMonitoringEmailEnabled(body.enabled);return json(res,200,{enabled:store.monitoringEmailEnabled()}); }
+    if(path==='/admin/allocation' && req.method==='GET') {
+      const active=proxies.filter(p=>available(p));
+      const capacity=active.length*MAX_PER_HOUR;
+      const assigned=store.assigned();
+      return json(res,200,{active:active.length,perProxy:MAX_PER_HOUR,capacity,assigned,
+        balance:capacity-assigned,defaultLimit:store.defaultLimit,remainingNow:active.reduce((n,p)=>n+MAX_PER_HOUR-p.requests.length,0)});
+    }
+  } else {
+    cors(res);
+    if(req.method==='OPTIONS') return res.writeHead(204).end();
+    key=/^Bearer (kb_[\w-]+)$/i.exec(req.headers.authorization || '')?.[1] || '';
+    user=store.byKey(key);
+    if(!user) return json(res,401,{error:{message:'Invalid or revoked API key.',type:'authentication_error'}});
+  }
+  if (path === '/dashboard' && req.method === 'GET') { res.writeHead(200, {'content-type':'text/html; charset=utf-8'}); return res.end(await readFile(join(ROOT, 'dashboard.html'), 'utf8')); }
+  if (path === '/api/admin/backup' && req.method === 'POST') {
+    const dir=await mkdtemp(join(tmpdir(),'kilo-backup-')),file=join(dir,'backup.sqlite');
+    try { await backup(tokenDb,file); const bytes=await readFile(file); store.audit('download database backup','administrator'); res.writeHead(200,{'content-type':'application/vnd.sqlite3','content-disposition':'attachment; filename="toknado-backup.sqlite"','cache-control':'no-store'}); return res.end(bytes); }
+    finally { await unlink(file).catch(()=>{}); await rmdir(dir).catch(()=>{}); }
+  }
+  if (path === '/api/proxies/import' && req.method === 'POST') { try { return json(res, 200, await importProxies()); } catch (error) { return json(res, 502, { error: { message: error.message } }); } }
+  if (path === '/api/proxies/shuffle' && req.method === 'POST') { for(const p of proxies)p.shuffleRank=Math.random()*999; return json(res,200,{total:proxies.length}); }
+  if (path === '/health/stats' && req.method === 'GET') { const rank=new Map(proxies.map(p=>[p.id,p.shuffleRank??0])); const stats = proxies.map(proxyStats).sort((a,b) => Math.floor((a.latencyMs??Infinity)/1000)-Math.floor((b.latencyMs??Infinity)/1000)||(rank.get(a.id)-rank.get(b.id))); return json(res, 200, { tokens: getUsage.get(), total: stats.length, available: stats.filter(p => p.backoffSeconds === 0 && p.remaining > 0).length, quota: MAX_PER_HOUR, proxies: stats }); }
+  if (req.method === 'GET' && (path === '/v1/models' || path === '/models')) return json(res,200,{object:'list',data:[{id:MODEL,object:'model',created:0,owned_by:'toknado'}]});
+  if (path !== '/v1/chat/completions' && path !== '/chat/completions') return json(res,404,{error:{message:'Endpoint not found.'}});
+  if (req.method !== 'POST') return json(res,405,{error:{message:'Method not allowed.'}});
+  let body; try { body = await readJson(req); } catch { return json(res,400,{error:{message:'Request body must be valid JSON.'}}); }
+  if (!body || !Array.isArray(body.messages)) return json(res,400,{error:{message:'messages must be an array.'}}); body.model = UPSTREAM_MODEL;
+  if (body.stream === true && body.stream_options === undefined) body.stream_options = { include_usage: true };
+  if (!proxies.length) return json(res, 503, { error: { message: 'No proxies loaded. Open the dashboard and click Load proxies.', type: 'api_connection_error' } });
+  if (!proxies.some(p=>available(p))) return json(res,429,{error:{message:'No proxy capacity available.',type:'rate_limit_error'}});
+  const admission=store.reserve(key);
+  if(admission!==200) return json(res,admission,{error:admission===429
+      ? {message:'This API key has reached its rolling hourly request limit. Upgrade your plan at https://toknado.up.railway.app/pricing',type:'rate_limit_error',upgrade_url:'https://toknado.up.railway.app/pricing'}
+    : {message:'Invalid or revoked API key.',type:'authentication_error'}});
+  let last, lastLimit; const attempts = Math.min(proxies.length, Number(process.env.PROXY_RETRIES || 3));
+  for (let i=0; i<attempts; i++) { const proxy = pickProxy(); if (!proxy) break; const controller = new AbortController();
+    const cancel = () => controller.abort();
+    res.once("close", cancel);
+    try { if (res.destroyed) return; const headers = {'content-type':'application/json',accept:req.headers.accept || 'application/json','x-kilocode-mode':req.headers['x-kilocode-mode'] || 'coding'}; if (KILO_API_KEY) headers.authorization = `Bearer ${KILO_API_KEY}`; const started = performance.now(); const upstream = await fetch(UPSTREAM,{method:'POST',signal:controller.signal,headers,body:JSON.stringify(body),dispatcher:agents.get(proxy.url.href)}); if (upstream.ok) { const ms = Math.max(1, performance.now() - started); proxy.latencyMs = Math.round(proxy.latencyMs ? 0.7 * proxy.latencyMs + 0.3 * ms : ms); } console.log(`[request] proxy=${proxy.id} status=${upstream.status} tools=${Array.isArray(body.tools) ? body.tools.length : 0} stream=${Boolean(body.stream)}`); if (upstream.status >= 500) { markFailure(proxy, `Kilo returned HTTP ${upstream.status}`); await upstream.body?.cancel(); last = new Error(`Kilo returned HTTP ${upstream.status}`); continue; } if(upstream.status===429) { markUpstreamLimit(proxy); const response=await upstream.text(); lastLimit={headers:responseHeaders(upstream),body:response.slice(0,65536)}; continue; } if(upstream.ok) markSuccess(proxy); res.writeHead(upstream.status,responseHeaders(upstream)); if (upstream.body) await forwardBody(upstream, res, user.id); return res.end(); } catch (e) { if (controller.signal.aborted) return; markFailure(proxy, e); if (res.headersSent) return res.destroy(); last=e;
+    } finally {
+      res.off("close", cancel);
+      proxy.active--;
+    }
+  }
+  if(lastLimit){res.writeHead(429,lastLimit.headers);return res.end(lastLimit.body)}
+  return json(res,502,{error:{message:`All proxy attempts failed: ${last?.message || 'No proxy available'}`,type:'api_connection_error'}});
+}
+if (process.env.KILO_BUSTER_TEST !== '1') {
+  const refreshProxies=()=>importProxies().catch(error=>console.error('[proxy] automatic import failed:',error.message));
+  void refreshProxies();
+  const refreshTimer=setInterval(refreshProxies,45*60*1000);refreshTimer.unref();
+  let alertBusy=false;
+  const alertTimer=setInterval(async()=>{
+    if(alertBusy||!store.monitoringEmailEnabled()||!process.env.ALERT_EMAIL||!process.env.RESEND_API_KEY||!process.env.USAGE_EMAIL_FROM)return;
+    const status=store.operationalStatus(), active=proxies.filter(p=>available(p)).length, problems=[];
+    if(!active&&store.alertDue('no_proxies'))problems.push(['no_proxies','No proxy endpoints are currently available.']);
+    if(status.welcomeFailed&&store.alertDue('welcome_failed'))problems.push(['welcome_failed',status.welcomeFailed+' welcome email(s) awaiting retry.']);
+    if(status.webhookFailures&&store.alertDue('webhook_failed'))problems.push(['webhook_failed',status.webhookFailures+' Stripe webhook processing failure(s) in the last 24 hours.']);
+    if(!problems.length)return;
+    alertBusy=true;try{const response=await fetch('https://api.resend.com/emails',{method:'POST',signal:AbortSignal.timeout(10000),headers:{Authorization:'Bearer '+process.env.RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:process.env.USAGE_EMAIL_FROM,to:[process.env.ALERT_EMAIL],subject:'TOKNADO service needs attention',text:problems.map(p=>p[1]).join('\n')+'\n\nOpen the TOKNADO Storm Console and Railway logs to investigate.'})});if(response.ok)store.alertSent(problems.map(p=>p[0]));else console.error('[monitor] alert delivery failed',response.status)}catch{console.error('[monitor] alert delivery failed')}finally{alertBusy=false}
+  },5*60*1000);alertTimer.unref();
+  http.createServer((req,res)=>handler(req,res).catch(error=> {
+  console.error('[http] request failed:',error?.stack||error);
+  if(res.headersSent) return res.destroy();
+  json(res,500,{error:{message:'Internal server error.'}});
+  })).listen(PORT,HOST,()=>console.log(`API listening on ${HOST}:${PORT}`));
+}
+export { handler, tokenDb }; 
+

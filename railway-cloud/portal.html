@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TOKNADO — Storm Console</title><link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/cloud.css"><script defer src="/theme.js"></script>
+<style>
+:root{--portal-art:url('/portal/art.png')}
+:root{color-scheme:dark;font:16px/1.5 Inter,"Segoe UI",system-ui,sans-serif;color:#ebeff7;background:#0b0e15}
+*{box-sizing:border-box}body{margin:0}main,header{max-width:1000px;margin:auto;padding:24px}header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #303a48;gap:12px;flex-wrap:wrap}header strong{font-size:20px}nav,.actions,.metrics{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+a{color:#b9f477}h1{letter-spacing:-.04em;margin:.4em 0;font-size:clamp(28px,5vw,44px)}h2{font-size:19px;margin:0 0 12px}p,small,label{color:#b9c5d5}.panel{margin:16px 0;background:#151c27;border:1px solid #303a48;border-radius:14px;padding:20px}.login{max-width:420px}.metrics{align-items:stretch}.metric{flex:1 1 140px}.metric strong{display:block;font-size:24px}input,button{font:inherit;border-radius:7px;padding:8px 12px}input{width:100%;background:#0b111a;color:inherit;border:1px solid #536070}label{display:block;margin-bottom:12px}button{border:0;background:#b9f477;color:#142005;font-weight:650;cursor:pointer}button:disabled{opacity:.5}button.secondary{background:#293647;color:#eaf1fa}code{overflow-wrap:anywhere}#message{color:#ffe3a4}.row{border-top:1px solid #364252;padding:14px 0}.row input{width:7em}.row label{margin:0}.secret{font-family:monospace}a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #83bbff}
+body{min-height:100svh;background:#111821;isolation:isolate}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(90deg,#0b1119f5,#101925d6 54%,#111a2570),var(--portal-art) center/cover no-repeat}
+header{max-width:none;padding:14px max(24px,calc((100vw - 1120px)/2));background:#101620ed;border-color:#8995aa3b}
+header strong{letter-spacing:-.035em}header strong span{font-weight:450;color:#afc7d4}
+main{max-width:1168px}.panel{background:#111a25f7;border-color:#566376;border-radius:12px}
+a{color:#ffbf8c}button{background:#ffc08b;color:#28180b}button:hover{filter:brightness(1.08)}
+body.auth::before{background:linear-gradient(90deg,#101620 4%,#101620fa 28%,#101620bc 42%,transparent 67%),var(--portal-art) right center/min(81vw,1750px) auto no-repeat,#101620}
+.auth main{padding-top:clamp(44px,10vh,112px)}.auth h1{font-size:clamp(32px,4vw,48px)}
+.login{max-width:370px;padding:24px;box-shadow:0 16px 44px #0005}.login input{margin-top:5px}.login button{width:100%;margin-top:6px}.login p{margin:15px 0 0}
+@media(max-width:700px){body.auth::before{position:absolute;height:clamp(165px,55vw,350px);top:58px;background:linear-gradient(0deg,#111821,transparent 37%),var(--portal-art) center/cover no-repeat}.auth main{padding:clamp(145px,49vw,305px) 18px 24px}.auth .login{max-width:none}.auth h1{margin:.3em 0}.panel{padding:16px}.actions{align-items:end}header{padding:14px 18px}}
+:root,body{background:var(--bg);color:var(--text)}
+body::before{background-image:linear-gradient(90deg,color-mix(in srgb,var(--bg) 98%,transparent),color-mix(in srgb,var(--bg) 84%,transparent)),var(--portal-art)}
+body.auth::before{background-color:var(--bg);background-image:linear-gradient(90deg,var(--bg) 4%,var(--bg) 28%,color-mix(in srgb,var(--bg) 75%,transparent) 42%,transparent 67%),var(--portal-art)}
+header,.panel{background:var(--surface);border-color:var(--border)}header strong span,p,small,label{color:var(--muted)}
+nav{margin-left:auto}button{background:var(--accent);color:#13200b}button:hover{background:var(--accent-strong)}
+button.secondary{background:var(--secondary);color:var(--text)}input{background:var(--field);color:var(--text);border-color:var(--border)}
+a,#message{color:var(--accent)}:root[data-theme="light"] a,:root[data-theme="light"] #message{color:color-mix(in srgb,var(--accent) 42%,#101720)}
+.row{border-color:var(--border)}.key-line{padding:10px;border-radius:8px;margin:8px 0;background:var(--surface-2)}.key-line strong{min-width:8em}.appearance-menu label{margin:0}.key-reveal{border:2px solid var(--accent);box-shadow:0 10px 30px color-mix(in srgb,var(--accent) 18%,transparent)}.key-reveal .secret{font-size:clamp(12px,1.5vw,15px);letter-spacing:.02em}.key-reveal p{margin-top:0}
+@media(max-width:700px){body.auth::before{background-image:linear-gradient(0deg,var(--bg),transparent 37%),var(--portal-art)}header{position:relative;z-index:1}.appearance-menu{background:var(--surface)}}
+</style></head><body><header><strong>◉ TOK<span>NADO</span></strong><nav id="nav"></nav></header><main>
+<h1 id="title"></h1><p id="message" role="status"></p><div id="content"></div>
+<style>dialog.panel{margin:auto;color:var(--text);width:min(420px,94vw)}dialog::backdrop{background:#060910ac}dialog select{display:block;width:100%;font:inherit;padding:8px;border-radius:7px;background:var(--field);color:var(--text);border:1px solid var(--border)}
+.subscription-panel .plan-choices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0}.subscription-panel .plan-choice{display:flex;flex-direction:column;gap:8px;min-width:0;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}.subscription-panel .plan-choice strong{font-size:18px;color:var(--text)}.subscription-panel .plan-choice small{font-size:14px;color:var(--muted);margin-bottom:5px}.subscription-panel .plan-choice button{width:100%;margin-top:auto}.subscription-panel .upgrade-support{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-top:18px;border-top:1px solid var(--border)}@media(max-width:850px){.subscription-panel .plan-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.subscription-panel .plan-choices{grid-template-columns:1fr}}</style>
+<dialog id="upgrade" aria-labelledby="upgrade-title" class="panel"><form id="upgradeForm">
+<h2 id="upgrade-title">Custom capacity</h2><p>Tell us what you need beyond the published plans. We’ll use your email to reply to this request.</p>
+<label for="requestedRate">Requests per hour</label><select id="requestedRate"><option value="25000">25,000 or more</option></select>
+<label>Your contact email<input id="contactEmail" type="email" autocomplete="email" maxlength="254" required></label>
+<p role="status" id="mailStatus"></p><div class="actions"><button type="submit">Send request</button><button type="button" class="secondary" id="cancelRequest">Cancel</button></div>
+</form></dialog>
+<section id="issued" class="panel key-reveal" hidden><h2>API key created</h2><p id="issuedMeta">Copy this key now. The full value is only available at creation time.</p><label>Full API key<input class="secret" id="secret" readonly></label><button id="copy">Copy key</button></section>
+</main><script>
+const $=id=>document.getElementById(id), path=location.pathname;
+if(location.protocol==='file:') document.documentElement.style.setProperty('--portal-art','url("./assets/toknado-hero.gif")');
+const content=$('content'), nav=$('nav');
+document.body.classList.add(path==='/admin'?'admin-auth':path.startsWith('/admin')?'admin-view':'portal-view');
+function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n}
+function link(parent,label,href){const n=el('a',label);n.href=href;parent.append(n)}
+function message(text){$('message').textContent=text}
+$('cancelRequest').onclick=()=>$('upgrade').close();
+$('upgradeForm').onsubmit=async e=>{
+  e.preventDefault();const submit=e.submitter;submit.disabled=true;$('mailStatus').textContent='Sending…';
+  try{await api('/portal/usage-request',{rate:Number($('requestedRate').value),email:$('contactEmail').value.trim()});
+    $('upgrade').close();message('Your usage request was submitted. We can reply to your contact email.');
+  }catch(err){$('mailStatus').textContent=err.message}finally{submit.disabled=false}
+};
+async function api(path,data){
+  const r=await fetch(path,data===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  const result=await r.json(); if(!r.ok)throw Error(result.error?.message || 'Request failed.');return result;
+}
+function button(parent,label,work,secondary=false){
+  const b=el('button',label,secondary?'secondary':'');b.type='button';
+  b.onclick=async()=>{b.disabled=true;message('');try{await work()}catch(e){message(e.message)}finally{b.disabled=false}};
+  parent.append(b);return b;
+}
+function field(parent,name,type,autocomplete){
+  const label=el('label',name), input=el('input');input.type=type;input.required=true;
+  if(autocomplete)input.autocomplete=autocomplete;
+  label.append(input);parent.append(label);return input;
+}
+function showKey(key,meta='Copy this key now. The full value is only available at creation time.'){$('secret').value=key;$('issuedMeta').textContent=meta;$('issued').hidden=false;$('issued').scrollIntoView({block:'nearest'});}
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('secret').value);message('Key copied.')}catch{$('secret').select();message('Press Ctrl+C or Command+C to copy.')}};
+function signOut(){button(nav,'Sign out',async()=>{await api('/portal/logout',{});location.replace('/login')},true)}
+function auth(){
+  document.body.classList.add('auth');
+  const admin=path==='/admin', register=path==='/register';
+  $('title').textContent=admin?'Administrator sign-in':register?'Create an account':'Sign in';
+  link(nav,'Home','/');link(nav,'Pricing','/pricing');if(admin)link(nav,'User sign-in','/login');link(nav,'Setup guide','/setup');
+  const form=el('form',undefined,'panel login');content.append(form);
+  const user=admin?null:field(form,'Username','text','username');
+  const email=register?field(form,'Email address','email','email'):null;
+  if(user){user.pattern='[a-zA-Z0-9_\\-]{3,32}';user.title='3–32 letters, numbers, underscores or hyphens';}
+  const pass=field(form,register?'Password (at least 10 characters)':'Password','password',register?'new-password':'current-password');
+  if(register)pass.minLength=10;
+  button(form,'Show password',()=>{pass.type=pass.type==='password'?'text':'password';toggle.textContent=pass.type==='password'?'Show password':'Hide password'},true);
+  const toggle=form.lastElementChild;
+  const submit=el('button',register?'Create account':'Sign in');form.append(submit);
+  if(!admin){const p=el('p');link(p,register?'Already registered? Sign in':'Create an account','/'+(register?'login':'register'));form.append(p);if(!register){const recovery=el('p');link(recovery,'Forgot password?','/reset');form.append(recovery)}}
+  form.onsubmit=async e=>{e.preventDefault();submit.disabled=true;try{
+    const r=await api('/portal/'+(admin?'admin':register?'register':'login'),{username:user?.value,password:pass.value,...(email?{email:email.value}:{})});
+    location.replace(r.location);
+  }catch(err){message(err.message)}finally{submit.disabled=false}};
+}
+function resetPage(){
+  document.body.classList.add('auth');link(nav,'Home','/');link(nav,'Sign in','/login');
+  const token=new URLSearchParams(location.search).get('token');$('title').textContent=token?'Choose a new password':'Reset password';
+  const form=el('form',undefined,'panel login');content.append(form);
+  const username=token?null:field(form,'Username','text','username'), email=token?null:field(form,'Email address','email','email'), password=token?field(form,'New password','password','new-password'):null;
+  if(password){password.minLength=10;password.maxLength=256;history.replaceState(null,'','/reset')}
+  const submit=el('button',token?'Set password':'Send reset link');form.append(submit);
+  form.onsubmit=async e=>{e.preventDefault();submit.disabled=true;try{const result=await api(token?'/portal/reset-password':'/portal/reset-request',token?{token,password:password.value}:{username:username.value,email:email.value});message(token?'Password updated. You can now sign in.':result.message);if(token){form.replaceChildren();link(form,'Sign in','/login')}}catch(error){message(error.message)}finally{submit.disabled=false}};
+}
+function metrics(parent,values){
+  const block=el('div',undefined,'metrics');parent.append(block);
+  for(const [label,value] of values){const card=el('div',undefined,'metric panel');card.append(el('small',label),el('strong',Number(value).toLocaleString()));block.append(card)}
+}
+function guide(){
+  $('title').textContent='Setup guide'; link(nav,'Home','/'); link(nav,'Pricing','/pricing'); link(nav,'Sign in','/login'); link(nav,'Create account','/register');
+  api('/portal/session').then(s=>{if(!s.signedIn)return;nav.querySelectorAll('a[href="/login"],a[href="/register"]').forEach(a=>a.remove());link(nav,s.admin?'Admin dashboard':'My account',s.admin?'/dashboard':'/account');signOut()}).catch(()=>{});
+  const p=el('section',undefined,'panel');content.append(p);p.append(el('h2','Connect any OpenAI-compatible tool'),el('p','Set the base URL to the endpoint below and use your assigned API key. TOKNADO intelligently routes requests through its managed model pool.'),el('h3','Endpoint URL'),el('code',location.origin+'/v1'),el('h3','Routing'),el('code','Managed model pool'));
+  const trial=el('section',undefined,'panel');content.append(trial);
+  trial.append(el('h2','Try the service'),el('p','One three-day trial per browser, up to 750 requests per rolling hour.'));
+  const renderKey=key=>{
+    const label=el('label','Your trial API key'),input=el('input');input.type='password';input.readOnly=true;input.value=key;label.append(input);trial.append(label);
+    const show=button(trial,'Show key',()=>{input.type=input.type==='password'?'text':'password';show.textContent=input.type==='password'?'Show key':'Hide key'},true);
+    button(trial,'Copy trial key',async()=>{await navigator.clipboard.writeText(key);message('Trial key copied.')});
+    button(trial,'Test my key',async()=>{const r=await fetch('/v1/models',{headers:{Authorization:'Bearer '+key}});message(r.ok?'Connected. Your key can access the model list.':'Key check failed (HTTP '+r.status+').')},true);
+  };
+  api('/portal/trial/current').then(async r=>{
+    const old=localStorage.getItem('kb_trial_key');
+    if(!r.key&&old){const migration=await fetch('/portal/trial/migrate',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+old},body:'{}'});if(migration.ok)r=await migration.json();else if(migration.status!==403)throw Error('Migration unavailable');}
+    localStorage.removeItem('kb_trial_key');
+    if(r.key)renderKey(r.key);else button(trial,'Get trial key',async()=>{const issued=await api('/portal/trial',{});trial.lastElementChild.remove();renderKey(issued.key)});
+  }).catch(()=>message('Could not check your trial. Refresh to try again.'));
+  const steps=el('section',undefined,'panel');content.append(steps);steps.append(el('h2','Quick-start examples'));
+  const examples=[['OpenAI SDK (JavaScript)',`import OpenAI from 'openai';\nconst client = new OpenAI({ baseURL: '${location.origin}/v1', apiKey: process.env.KILO_BUSTER_API_KEY });\nconst result = await client.chat.completions.create({ model: 'kilo-auto/free', messages: [{ role: 'user', content: 'Hello' }] });`],['OpenAI SDK (Python)',`import os\nfrom openai import OpenAI\nclient = OpenAI(base_url='${location.origin}/v1', api_key=os.environ['KILO_BUSTER_API_KEY'])\nprint(client.chat.completions.create(model='kilo-auto/free', messages=[{'role':'user','content':'Hello'}]))`],['curl',`curl ${location.origin}/v1/chat/completions \\\n  -H "Authorization: Bearer $KILO_BUSTER_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"kilo-auto/free","messages":[{"role":"user","content":"Hello"}]}'`]];
+  for(const [name,code] of examples){const block=el('div',undefined,'row');block.append(el('strong',name));const pre=el('pre');pre.textContent=code;block.append(pre);button(block,'Copy example',async()=>{await navigator.clipboard.writeText(code);message('Example copied.')},true);steps.append(block)}
+  steps.append(el('p','Use a custom provider that supports OpenAI Chat Completions. Clients that require Anthropic Messages, including Claude Code in its native configuration, need a protocol adapter.'));
+}
+async function welcome(){
+  $('title').textContent='Your account is ready';
+  link(nav,'Setup guide','/setup');link(nav,'Sign in','/login');
+  const box=el('section',undefined,'panel password-setup');content.append(box);
+  const checkout=new URLSearchParams(location.search).get('checkout');
+  if(!checkout){box.append(el('h2','Payment received'),el('p','Your secure account link is missing. Use the sign-in link from your purchase email or contact support.'));return;}
+  const status=el('p','Preparing your account…');box.append(status);
+  try{
+    const result=await api('/portal/checkout-return',{checkout});
+    if(result.status==='pending'){status.textContent='Payment is still being confirmed. Refresh this page in a moment.';return;}
+    if(result.status!=='ready'){status.textContent='This account link has expired. Use the sign-in link from your purchase email.';return;}
+    status.textContent='Payment confirmed. Opening your account…';
+    location.replace('/account');
+    return;
+    const form=el('form'),pass=field(form,'New password','password','new-password');pass.minLength=10;pass.maxLength=256;
+    const confirm=field(form,'Confirm password','password','new-password'),submit=el('button','Save password');form.append(submit);box.append(form);
+    form.onsubmit=async event=>{event.preventDefault();if(pass.value!==confirm.value){status.textContent='Passwords do not match.';return;}submit.disabled=true;try{await api('/portal/password',{password:pass.value});location.replace('/account')}catch(error){status.textContent=error.message;submit.disabled=false}};
+  }catch(error){status.textContent=error.message}
+}
+async function account(){
+  nav.replaceChildren();link(nav,'Home','/');link(nav,'Setup guide','/setup');link(nav,'Pricing','/pricing');signOut();
+  const u=await api('/portal/me');content.replaceChildren();$('title').textContent='Welcome back, '+u.username;if(new URLSearchParams(location.search).get('billing')==='success')message('Welcome back from Checkout. Your current keys and limits are shown below.');
+  if(u.temporary){const notice=el('section',undefined,'panel');notice.append(el('h2','Set your password'),el('p','Use your temporary password from your welcome email in Account security below to choose your own password.'));content.append(notice)}
+  metrics(content,[['Requests left this hour',u.remaining],['Used in last 60 min',u.used],['Hourly limit',u.quota],['Lifetime requests',u.total]]);
+  const p=el('section',undefined,'panel account-panel');content.append(p);p.append(el('h2','API access'),el('code',location.origin+'/v1'),
+    el('p',u.keys.length?'Assigned keys':'Try the service or choose a monthly plan below.'));
+  if(!u.keys.length)button(p,'Start free trial',async()=>{await api('/portal/account-trial',{});await account();message('Your three-day trial is ready.')});
+  for(const k of u.keys){const line=el('div',undefined,'key-line');line.append(el('strong','API key · '+k.suffix),el('p',k.remaining+' of '+k.quota+' requests left this hour'));const actions=el('div',undefined,'actions');const copy=el('button','Copy API key','secondary');copy.type='button';copy.onclick=async()=>{try{await navigator.clipboard.writeText(k.key);message('API key copied to clipboard.')}catch{message('Clipboard access was blocked.')}};actions.append(copy);button(actions,'Rotate key',async()=>{if(!confirm('Rotate this key? Existing clients using it will stop working immediately.'))return;const result=await api('/portal/rotate-key',{id:k.id});await account();showKey(result.key,'Your key has been rotated. Update your clients with the new key.');message('Key rotated.')},true);line.append(actions);p.append(line)}
+  const plans=el('section',undefined,'panel account-panel subscription-panel');plans.append(el('h2','Your subscription'));content.append(plans);
+  if(u.paidUntil){
+    plans.append(el('p','Paid through '+new Date(u.paidUntil).toLocaleDateString()+'.'));
+    button(plans,'Manage billing',async()=>{location.href=(await api('/portal/billing-portal',{})).url});
+  }else{
+    plans.append(el('p','Increase your hourly capacity instantly with a secure Stripe subscription.'));
+    const choices=el('div',undefined,'plan-choices');plans.append(choices);
+    for(const [rate,price] of [[2500,'$7.99'],[5000,'$12.99'],[7500,'$19.99'],[10000,'$29.99']])
+      {const card=el('div',undefined,'plan-choice');card.append(el('strong',rate.toLocaleString()+'/hr'),el('small',price+'/month'));button(card,'Upgrade',async()=>{location.href=(await api('/portal/checkout',{price:rate})).url});choices.append(card)}
+  }
+  const orders=el('section',undefined,'panel account-panel orders-panel');orders.append(el('h2','Orders & receipts'),el('p','Your paid subscriptions and renewals.'));content.append(orders);
+  if(!u.invoices.length)orders.append(el('p','No paid orders yet. Your receipts will appear here after a payment is confirmed.'));
+  for(const i of u.invoices){const row=el('div',undefined,'order-row'),details=el('div',undefined,'order-details');details.append(el('strong',i.renewal?'Subscription renewal':'Subscription purchase'),el('small',new Date(i.paid).toLocaleDateString()+' · '+Number(i.quota).toLocaleString()+' requests/hour'));row.append(details,el('strong','$'+(i.amount/100).toFixed(2)));if(i.url?.startsWith('https://invoice.stripe.com/')){const receipt=el('a','View receipt');receipt.href=i.url;receipt.target='_blank';receipt.rel='noopener noreferrer';row.append(receipt)}else row.append(el('small','Receipt unavailable'));orders.append(row)}
+  if(u.quota>0&&u.used>=u.quota*.8)p.append(el('p',u.used.toLocaleString()+' of '+u.quota.toLocaleString()+' requests used this hour. Review your plan below.'));
+  const support=el('div',undefined,'upgrade-support');support.append(el('span','Need more than 10,000 requests per hour?'));
+  const supportActions=el('div',undefined,'actions');button(supportActions,'Request custom capacity',()=>{$('mailStatus').textContent='';$('upgrade').showModal()},true);
+  button(supportActions,'Report a problem',()=>{location.href='mailto:'+encodeURIComponent(u.supportEmail)+'?subject='+encodeURIComponent('TOKNADO problem report')+'&body='+encodeURIComponent('Username: '+u.username+'\n\nWhat happened?\n\nSteps to reproduce:\n')},true);
+  support.append(supportActions);plans.append(support);
+  const security=el('section',undefined,'panel account-panel');security.append(el('h2','Account security'),el('p','Update your password. Other signed-in sessions will be signed out.'));content.append(security);
+  security.append(el('h3','Recovery email'),el('p',u.recoveryEmail?'Current recovery email: '+u.recoveryEmail:'No recovery email is set. Add one to use password reset.'));
+  const emailForm=el('form',undefined,'recovery-email-form'),recovery=field(emailForm,'New recovery email','email','email'),recoveryPassword=field(emailForm,'Current password','password','current-password'),sendVerification=el('button','Send verification link');emailForm.append(sendVerification);security.append(emailForm);
+  emailForm.onsubmit=async e=>{e.preventDefault();sendVerification.disabled=true;try{await api('/portal/recovery-email',{email:recovery.value,password:recoveryPassword.value});emailForm.reset();message('Verification email sent. Open the link while signed in.')}catch(error){message(error.message)}finally{sendVerification.disabled=false}};
+  const form=el('form',undefined,'password-change'), current=field(form,'Current password','password','current-password'), password=field(form,'New password','password','new-password'), confirmPassword=field(form,'Confirm new password','password','new-password');password.minLength=10;password.maxLength=256;confirmPassword.minLength=10;confirmPassword.maxLength=256;
+  const save=el('button','Change password');form.append(save);security.append(form);
+  form.onsubmit=async e=>{e.preventDefault();if(password.value!==confirmPassword.value){message('New passwords do not match.');return}save.disabled=true;try{await api('/portal/change-password',{current:current.value,password:password.value});form.reset();message('Password updated. Other sessions have been signed out.')}catch(error){message(error.message)}finally{save.disabled=false}};
+  metrics(content,[['Lifetime input tokens',u.input],['Lifetime output tokens',u.output],['Total tokens',u.input+u.output]]);
+}
+async function admins(){
+  const [users,v,payments,sales,audit,monitor]=await Promise.all([api('/portal/users'),api('/admin/allocation'),api('/portal/payments'),api('/portal/sales'),api('/portal/audit'),api('/admin/monitoring')]); content.replaceChildren();
+  const monitoring=el('section',undefined,'panel');monitoring.append(el('h2','Service monitoring'));const alerts=[];if(!monitor.activeProxies)alerts.push('No proxies are currently available. API requests cannot be routed.');if(monitor.welcomeFailed)alerts.push(monitor.welcomeFailed+' welcome email(s) are awaiting retry.');if(monitor.webhookFailures)alerts.push(monitor.webhookFailures+' Stripe webhook processing failure(s) in the last 24 hours. Check deployment logs and Stripe deliveries.');monitoring.append(el('p',alerts.length?'Attention needed':'No monitored issues detected.'));for(const alert of alerts)monitoring.append(el('p',alert));monitoring.append(el('small',monitor.activeProxies+' of '+monitor.loadedProxies+' proxies available · '+monitor.welcomePending+' welcome email(s) pending'));content.append(monitoring);
+  const emailControls=el('div',undefined,'actions');emailControls.append(el('p','Monitoring emails: '+(monitor.emailEnabled?(monitor.emailConfigured?'On':'On · email not configured'):'Off')));button(emailControls,monitor.emailEnabled?'Turn off monitoring emails':'Turn on monitoring emails',async()=>{await api('/admin/monitoring/email',{enabled:!monitor.emailEnabled});await admins();message('Monitoring emails '+(!monitor.emailEnabled?'enabled':'disabled')+'.')},true);monitoring.append(emailControls);
+  metrics(content,[['Available proxies',v.active],['Hourly capacity',v.capacity],['Assigned per hour',v.assigned],[v.balance<0?'Overassigned per hour':'Unassigned per hour',Math.abs(v.balance)]]);
+  const backupPanel=el('section',undefined,'panel');backupPanel.append(el('h2','Database backup'),el('p','Download a snapshot of accounts, encrypted keys, subscriptions and usage. Store it securely; it contains sensitive data. Keep your key encryption secret separately.'));button(backupPanel,'Download database backup',async()=>{const response=await fetch('/api/admin/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(!response.ok)throw Error('Could not create database backup.');const url=URL.createObjectURL(await response.blob());const a=el('a');a.href=url;a.download='toknado-backup.sqlite';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);message('Backup downloaded. Store it securely.')},true);content.append(backupPanel);
+  content.append(el('p',v.active+' available proxies × '+v.perProxy+' attempts/hour. '+v.remainingNow+' attempts remain right now. Assignments may exceed capacity.'));
+  const payPanel=el('section',undefined,'panel');payPanel.append(el('h2','Legacy payment approvals'));content.append(payPanel);if(!payments.length)payPanel.append(el('p','No legacy payments. New subscriptions activate automatically and appear in invoice sales.'));for(const p of payments){const row=el('div',undefined,'row');row.append(el('strong',(p.username||'Unknown user')+' · '+p.quota.toLocaleString()+'/hr'),el('p',p.status+' · '+new Date(p.created).toLocaleString()));if(p.status==='pending')button(row,'Approve payment',async()=>{await api('/portal/payments/'+p.id+'/approve',{});await admins();message('Payment approved and quota activated.')});payPanel.append(row)}
+  const salesPanel=el('section',undefined,'panel');salesPanel.append(el('h2','Invoice sales · '+(sales.live?'Live':'Sandbox')));const salesGrid=el('div',undefined,'metrics');for(const [label,data] of [['Today',sales.today],['This week',sales.week],['This month',sales.month],['Lifetime',sales.total]]){const card=el('div',undefined,'metric');card.append(el('small',label),el('strong','$'+(data.cents/100).toFixed(2)),el('p',data.count+' paid invoice'+(data.count===1?'':'s')));salesGrid.append(card)}salesPanel.append(salesGrid);const customers=el('div');customers.append(el('h3','Customers'),el('p','Gross paid invoices · UTC · before refunds and fees.'));for(const c of sales.customers){const row=el('div',undefined,'row');row.append(el('strong',c.username),el('p','Joined '+(c.joined_at?new Date(c.joined_at).toLocaleDateString():'date unavailable')+' · First payment '+new Date(c.first_paid).toLocaleDateString()+' · '+c.renewals+' renewal'+(c.renewals===1?'':'s')+' · $'+(c.cents/100).toFixed(2)));customers.append(row)}salesPanel.append(customers);content.append(salesPanel);
+  const create=el('form',undefined,'panel'), fields=el('div',undefined,'actions');
+  create.append(el('h2','Create account and key'),fields);content.append(create);
+  const username=field(fields,'New username','text','off'), password=field(fields,'User password','password','new-password');
+  username.pattern='[A-Za-z0-9_\\-]{3,32}';password.minLength=10;password.maxLength=256;
+  const quota=limitInput(fields,'Hourly request limit',v.defaultLimit), submit=el('button','Create account and key');
+  fields.append(submit);
+  create.onsubmit=async event=>{event.preventDefault();submit.disabled=true;
+    try{const result=await api('/portal/users/create-with-key',{username:username.value,password:password.value,quota:quota.valueAsNumber});
+      const name=username.value;create.reset();await admins();showKey(result.key,'Account '+name+' created. Copy this full key now and store it securely; it cannot be recovered later.');message('Account and key created for '+name+'.');
+    }catch(e){message(e.message)}finally{submit.disabled=false}
+  };
+  const panel=el('section',undefined,'panel admin-key-panel');panel.append(el('h2','API key management'),el('p','Create, rotate, limit, or revoke customer keys. Full key values are shown only when created.'));content.append(panel);
+  const search=el('input');search.type='search';search.placeholder='Search customers';search.setAttribute('aria-label','Search customers');panel.append(search);search.oninput=()=>panel.querySelectorAll('.admin-user-row').forEach(row=>row.hidden=!row.dataset.username.includes(search.value.trim().toLowerCase()));
+  if(!users.length)panel.append(el('p','Registered users will appear here.'));
+  for(const u of users){
+    const row=el('div',undefined,'row admin-user-row'),actions=el('div',undefined,'actions');panel.append(row);
+    row.dataset.username=u.username.toLowerCase();
+    row.append(el('strong',u.username+(u.trial_until?' · Trial':'')+(u.disabled?' · Revoked':'')),el('p',u.used+' used this hour · '+u.remaining+' left · '+u.total+' lifetime requests'),actions);
+    const base='/portal/users/'+u.id+'/';
+    if(!u.disabled){
+      const limit=limitInput(actions,'New key limit / hour',v.defaultLimit);
+      button(actions,'Create key',async()=>{if(!limit.reportValidity())return;
+        const result=await api(base+'key',{quota:limit.valueAsNumber});await admins();showKey(result.key,'A new key for '+u.username+' was created. Copy this full key now and store it securely; it cannot be recovered later.');
+      });
+    }
+    for(const k of u.keys){
+      const line=el('div',undefined,'actions key-line admin-key-line');row.append(line);
+      line.append(el('strong','•••• '+k.suffix),el('small',k.used+' used · '+k.remaining+' left'));
+      const limit=limitInput(line,'Hourly limit',k.quota), endpoint='/portal/keys/'+k.id+'/';
+      button(line,'Save limit',async()=>{if(!limit.reportValidity())return;await api(endpoint+'quota',{quota:limit.valueAsNumber});await admins();message('Limit saved.')},true);
+      button(line,'Delete key',async()=>{if(!confirm('Delete the key ending in '+k.suffix+' for '+u.username+'?'))return;
+        await api(endpoint+'delete',{});$('issued').hidden=true;$('secret').value='';await admins();message('Key deleted.');
+      },true);
+    }
+    button(actions,u.disabled?'Restore access':'Revoke access',async()=>{
+      if(!u.disabled&&!confirm('Revoke all access for '+u.username+'?'))return;
+      await api(base+(u.disabled?'enable':'revoke'),{});$('issued').hidden=true;$('secret').value='';await admins();
+    },true);
+  }
+  const history=el('section',undefined,'panel');history.append(el('h2','Admin activity'),el('p','Recent changes by the shared administrator account.'));if(!audit.length)history.append(el('p','No recorded changes yet.'));for(const entry of audit){const row=el('div',undefined,'row');row.append(el('strong',entry.action+' · '+entry.target),el('p',new Date(entry.at).toLocaleString()+(entry.detail?' · '+entry.detail:'')));history.append(row)}content.append(history);
+}
+function limitInput(parent,label,value){const input=field(parent,label,'number');input.min=0;input.max=1000000;input.value=value;return input}
+if(path==='/reset')resetPage();
+else if(path==='/setup')guide();
+else if(path==='/welcome')welcome();
+else if(path==='/account'){const verify=new URLSearchParams(location.search).get('verify_email');if(verify){history.replaceState(null,'','/account');api('/portal/confirm-recovery-email',{token:verify}).then(()=>{message('Recovery email verified.');return account()}).catch(e=>{message(e.message);account().catch(()=>{})})}else account().catch(e=>message(e.message));setInterval(()=>{if(!document.hidden&&!$('upgrade').open&&!document.activeElement?.closest('.password-change, .recovery-email-form'))account().catch(e=>message(e.message))},15000)}
+else if(path==='/admin/users'){$('title').textContent='Accounts and allocation';link(nav,'Home','/');link(nav,'Proxy dashboard','/dashboard');link(nav,'Setup guide','/setup');signOut();admins().catch(e=>message(e.message));button(nav,'Refresh',admins,true)}
+else auth();
+</script></body></html>
