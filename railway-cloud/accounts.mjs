@@ -46,7 +46,9 @@ export function accounts(db, defaultLimit) {
     db.exec('CREATE TABLE IF NOT EXISTS password_resets (hash TEXT PRIMARY KEY, uid INTEGER NOT NULL, expires INTEGER NOT NULL)');
     db.exec('CREATE TABLE IF NOT EXISTS email_verifications (hash TEXT PRIMARY KEY, uid INTEGER NOT NULL, email TEXT NOT NULL, expires INTEGER NOT NULL)');
     if (!query("SELECT 1 FROM pragma_table_info('api_keys') WHERE name='expires'").get()) db.exec('ALTER TABLE api_keys ADD COLUMN expires INTEGER');
-    db.exec('CREATE TABLE IF NOT EXISTS trial_claims (claim_hash TEXT PRIMARY KEY, key_id INTEGER NOT NULL, expires INTEGER NOT NULL)');
+    db.exec('CREATE TABLE IF NOT EXISTS trial_claims (claim_hash TEXT PRIMARY KEY, key_id INTEGER NOT NULL, expires INTEGER NOT NULL, ip_hash TEXT)');
+    if (!query("SELECT 1 FROM pragma_table_info('trial_claims') WHERE name='ip_hash'").get()) db.exec('ALTER TABLE trial_claims ADD COLUMN ip_hash TEXT');
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS one_trial_per_ip ON trial_claims(ip_hash) WHERE ip_hash IS NOT NULL');
     db.exec('CREATE TABLE IF NOT EXISTS admin_audit (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL, detail TEXT NOT NULL)');
     db.exec('CREATE TABLE IF NOT EXISTS operational_events (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, kind TEXT NOT NULL)');
     db.exec('CREATE TABLE IF NOT EXISTS service_settings (name TEXT PRIMARY KEY, value TEXT NOT NULL)');
@@ -278,19 +280,19 @@ export function accounts(db, defaultLimit) {
       return {subscription:query('SELECT customer,paid_until FROM subscriptions WHERE uid=? AND live=? AND ended=0 ORDER BY paid_until DESC LIMIT 1').get(uid,live),
         invoices:query('SELECT amount,paid,url,quota,renewal FROM invoices WHERE uid=? AND live=? ORDER BY paid DESC').all(uid,live)};
     },
-    async createTrial(claim) {
-      const claimHash=digest(claim), now=Date.now(), expires=now+3*24*hour;
+    async createTrial(claim,ip) {
+      const claimHash=digest(claim), ipHash=digest(ip), now=Date.now(), expires=now+3*24*hour;
       const hash=await passwordHash(secret());
       db.exec('BEGIN IMMEDIATE');
       try {
         query('DELETE FROM trial_claims WHERE expires<=?').run(now);
-        if(query('SELECT 1 FROM trial_claims WHERE claim_hash=?').get(claimHash)) { db.exec('ROLLBACK'); return null; }
+        if(query('SELECT 1 FROM trial_claims WHERE claim_hash=? OR ip_hash=?').get(claimHash,ipHash)) { db.exec('ROLLBACK'); return null; }
         const username='trial_'+randomBytes(10).toString('hex');
         const user=insertUser.run(username,hash,defaultLimit,Date.now());
         const key='kb_'+secret();
-        const result=query('INSERT INTO api_keys(uid,hash,suffix,quota,secret,expires) VALUES(?,?,?,?,?,?)').run(user.lastInsertRowid,digest(key),key.slice(-6),750,protect(key),expires);
+        const result=query('INSERT INTO api_keys(uid,hash,suffix,quota,secret,expires) VALUES(?,?,?,?,?,?)').run(user.lastInsertRowid,digest(key),key.slice(-6),250,protect(key),expires);
         query('UPDATE users SET trial_until=? WHERE id=?').run(expires,user.lastInsertRowid);
-        query('INSERT INTO trial_claims VALUES(?,?,?)').run(claimHash,result.lastInsertRowid,expires);
+        query('INSERT INTO trial_claims(claim_hash,key_id,expires,ip_hash) VALUES(?,?,?,?)').run(claimHash,result.lastInsertRowid,expires,ipHash);
         db.exec('COMMIT'); return {key,expires};
       } catch(e) { db.exec('ROLLBACK'); throw e; }
     },

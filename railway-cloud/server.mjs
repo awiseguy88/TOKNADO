@@ -183,7 +183,7 @@ async function handler(req, res) {
   res.setHeader('x-frame-options','DENY');
   if(req.method==='GET' && path==='/healthz') return json(res,200,{status:'ok'});
   if(req.method==='GET' && path==='/favicon.ico'){
-    res.writeHead(200,{'content-type':'image/x-icon','cache-control':'public, max-age=3600'});
+    res.writeHead(200,{'content-type':'image/x-icon','cache-control':'no-store'});
     return res.end(await readFile(join(ROOT,'assets/toknado.ico')));
   }
   if(req.method==='GET' && (path==='/cloud.css'||path==='/portal/cover.jpg')){

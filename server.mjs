@@ -14,7 +14,6 @@ const STATE_FILE = process.env.PROXY_STATE_FILE || join(ROOT, 'proxy-health-stat
 const PROXY_SOURCE = 'https://aaronwiseai.com/aidocs/prox.txt';
 let importing = false;
 let proxies = [], saveTimer = null;
-let batchProxy, batchRemaining = 0;
 const agents = new Map();
 const HOUR = 60 * 60 * 1000;
 const requestedLimit = Number(process.env.PROXY_REQUESTS_PER_HOUR ?? 149);
@@ -113,34 +112,15 @@ async function importProxies() {
     return { added, duplicates, invalid, total: proxies.length };
   } finally { importing = false; }
 }
-function scheduleSave() { if (saveTimer) return; saveTimer = setTimeout(async () => { saveTimer = null; const data = { savedAt: new Date().toISOString(), proxies: proxies.map(p => ({ address: `${p.url.hostname}:${p.url.port || 80}`, latencyMs: p.latencyMs, requests: p.requests, successes: p.successes, failures: p.failures, consecutiveFailures: p.consecutiveFailures, backoffUntil: p.backoffUntil, lastError: p.lastError, lastUsed: p.lastUsed })) }; const temp = `${STATE_FILE}.tmp`; try { await writeFile(temp, JSON.stringify(data), 'utf8'); await rename(temp, STATE_FILE); } catch (e) { console.error(`[state] unable to save ${STATE_FILE}: ${e.message}`); } }, 100); }
+function scheduleSave() { if (saveTimer) return; saveTimer = setTimeout(async () => { saveTimer = null; const data = { savedAt: new Date().toISOString(), proxies: proxies.map(p => ({ address: `${p.url.hostname}:${p.url.port || 80}`, latencyMs: p.latencyMs, successes: p.successes, failures: p.failures, consecutiveFailures: p.consecutiveFailures, backoffUntil: p.backoffUntil, lastError: p.lastError, lastUsed: p.lastUsed })) }; const temp = `${STATE_FILE}.tmp`; try { await writeFile(temp, JSON.stringify(data), 'utf8'); await rename(temp, STATE_FILE); } catch (e) { console.error(`[state] unable to save ${STATE_FILE}: ${e.message}`); } }, 3000); }
 function prune(proxy, now = Date.now()) { proxy.requests = proxy.requests.filter(t => now - t < HOUR); }
 function available(proxy, now = Date.now()) { prune(proxy, now); return proxy.backoffUntil <= now && proxy.requests.length < MAX_PER_HOUR; }
 function proxyStats(proxy) { const now = Date.now(); prune(proxy, now); return { id: proxy.id, active: proxy.active, latencyMs: proxy.latencyMs || null, address: `${proxy.url.hostname}:${proxy.url.port || 80}`, requestsLastHour: proxy.requests.length, remaining: Math.max(0, MAX_PER_HOUR - proxy.requests.length), successes: proxy.successes, failures: proxy.failures, consecutiveFailures: proxy.consecutiveFailures, backoffSeconds: Math.max(0, Math.ceil((proxy.backoffUntil - now) / 1000)), lastError: proxy.lastError, lastUsed: proxy.lastUsed ? new Date(proxy.lastUsed).toISOString() : null }; }
 function pickProxy() {
   const now = Date.now();
-  let next, current;
-  let lowestLoad = Infinity;
-  for (const proxy of proxies) {
-    if (proxy.backoffUntil > now) continue;
-    if (proxy.requests.length >= MAX_PER_HOUR && !available(proxy, now)) continue;
-    if (proxy.active > lowestLoad) continue;
-    if (proxy.active < lowestLoad) {
-      lowestLoad = proxy.active;
-      next = current = undefined;
-    }
-    if (proxy === batchProxy) current = proxy;
-    else if (!next || proxy.lastUsed < next.lastUsed ||
-      (proxy.lastUsed === next.lastUsed && (proxy.latencyMs || Infinity) < (next.latencyMs || Infinity))) next = proxy;
-  }
-  const selected = current && batchRemaining > 0 ? current : next || current;
+  const selected = proxies.filter(p=>available(p,now)).sort((a,b)=>(a.active-b.active)||((a.latencyMs||5000)-(b.latencyMs||5000))||(a.lastUsed-b.lastUsed))[0];
   if (!selected) return null;
   if (!reserveAttempt(selected, now)) return pickProxy();
-  if (selected !== batchProxy || batchRemaining === 0) {
-    batchProxy = selected;
-    batchRemaining = 25 + Math.floor(Math.random() * 6);
-  }
-  batchRemaining--;
   prune(selected, now);
   selected.active++;
   selected.lastUsed = now;
@@ -149,6 +129,7 @@ function pickProxy() {
 }
 function markSuccess(proxy) { proxy.successes++; proxy.consecutiveFailures = 0; proxy.backoffUntil = 0; proxy.lastError = ''; scheduleSave(); }
 function markFailure(proxy, error) { proxy.failures++; proxy.consecutiveFailures++; proxy.backoffUntil = Date.now() + Math.min(15 * 60 * 1000, BACKOFF_BASE * 2 ** Math.min(proxy.consecutiveFailures - 1, 8)); proxy.lastError = String(error?.message || error).slice(0, 240); scheduleSave(); }
+function markUpstreamLimit(proxy) { markFailure(proxy, 'Upstream rate limit reached'); }
 function cors(res) { res.setHeader('access-control-allow-origin','*'); res.setHeader('access-control-allow-methods','GET, POST, OPTIONS'); res.setHeader('access-control-allow-headers','Content-Type, Authorization'); }
 function json(res, status, data) { cors(res); res.writeHead(status, {'content-type':'application/json'}); res.end(JSON.stringify(data)); }
 async function readJson(req) { let s=''; for await (const c of req) s += c; return JSON.parse(s); }
@@ -173,7 +154,7 @@ async function handler(req, res) {
   for (let i=0; i<attempts; i++) { const proxy = pickProxy(); if (!proxy) return json(res, 429, { error: { message: 'All proxies are at their hourly quota or cooling down.', type: 'rate_limit_error' } }); const controller = new AbortController();
     const cancel = () => controller.abort();
     res.once("close", cancel);
-    try { if (res.destroyed) return; const headers = {'content-type':'application/json',accept:req.headers.accept || 'application/json','x-kilocode-mode':req.headers['x-kilocode-mode'] || 'coding'}; if (KILO_API_KEY) headers.authorization = `Bearer ${KILO_API_KEY}`; const started = performance.now(); const upstream = await fetch(UPSTREAM,{method:'POST',signal:controller.signal,headers,body:JSON.stringify(body),dispatcher:agents.get(proxy.url.href)}); if (upstream.ok) { const ms = Math.max(1, performance.now() - started); proxy.latencyMs = Math.round(proxy.latencyMs ? 0.7 * proxy.latencyMs + 0.3 * ms : ms); } console.log(`[request] proxy=${proxy.id} status=${upstream.status} tools=${Array.isArray(body.tools) ? body.tools.length : 0} stream=${Boolean(body.stream)}`); if (upstream.status >= 500) { markFailure(proxy, `Kilo returned HTTP ${upstream.status}`); await upstream.body?.cancel(); last = new Error(`Kilo returned HTTP ${upstream.status}`); continue; } markSuccess(proxy); res.writeHead(upstream.status,Object.fromEntries(upstream.headers)); if (upstream.body) await forwardBody(upstream, res); return res.end(); } catch (e) { if (controller.signal.aborted) return; markFailure(proxy, e); if (res.headersSent) return res.destroy(); last=e;
+    try { if (res.destroyed) return; const headers = {'content-type':'application/json',accept:req.headers.accept || 'application/json','accept-encoding':'identity','x-kilocode-mode':req.headers['x-kilocode-mode'] || 'coding'}; if (KILO_API_KEY) headers.authorization = `Bearer ${KILO_API_KEY}`; const started = performance.now(); const upstream = await fetch(UPSTREAM,{method:'POST',signal:controller.signal,headers,body:JSON.stringify(body),dispatcher:agents.get(proxy.url.href)}); if (upstream.ok) { const ms = Math.max(1, performance.now() - started); proxy.latencyMs = Math.round(proxy.latencyMs ? 0.7 * proxy.latencyMs + 0.3 * ms : ms); } console.log(`[request] proxy=${proxy.id} status=${upstream.status} tools=${Array.isArray(body.tools) ? body.tools.length : 0} stream=${Boolean(body.stream)}`); if (upstream.status === 429) { markUpstreamLimit(proxy); await upstream.body?.cancel(); last = new Error('Upstream rate limit reached'); continue; } if (upstream.status >= 500) { markFailure(proxy, `Upstream returned HTTP ${upstream.status}`); await upstream.body?.cancel(); last = new Error(`Upstream returned HTTP ${upstream.status}`); continue; } markSuccess(proxy); res.writeHead(upstream.status,Object.fromEntries(upstream.headers)); if (upstream.body) await forwardBody(upstream, res); return res.end(); } catch (e) { if (controller.signal.aborted) return; markFailure(proxy, e); if (res.headersSent) return res.destroy(); last=e;
     } finally {
       res.off("close", cancel);
       proxy.active--;

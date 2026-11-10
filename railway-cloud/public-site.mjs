@@ -22,8 +22,8 @@ export function publicPage(path) {
     <div class="hero-art"><img src="/portal/cover.jpg" alt="Animated TOKNADO storm mascot" width="1200" height="675"><div class="hero-orbit"></div></div></section>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${pricing?'Monthly API plans':'Unleash the token storm'} | TOKNADO</title>
-    <meta name="description" content="TOKNADO is a managed model pool with one OpenAI-compatible endpoint for your AI tools."><link rel="icon" href="/favicon.ico">
-    <link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/cloud.css"><script defer src="/theme.js"></script></head>
+    <meta name="description" content="TOKNADO is a managed model pool with one OpenAI-compatible endpoint for your AI tools."><link rel="icon" href="/favicon.ico?v=toknado-1">
+    <link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/cloud.css"></head>
     <body class="public"><header><a class="brand" href="/"><span class="brand-mark">◉</span> TOK<span>NADO</span></a>
     <nav aria-label="Main"><a href="/pricing">Pricing</a><a href="/setup">API guide</a><a href="${repo}" class="github-link">${github} GitHub</a><a href="/login">Sign in</a><a class="nav-join" href="/register">Start free</a></nav></header>
     <main>${pricing?'':hero}<section class="plan-section"><${pricing?'h1':'h2'}>Monthly plans</${pricing?'h1':'h2'}>

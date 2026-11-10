@@ -68,10 +68,10 @@ export async function portal(req,res,path,store,readJson,json) {
   if(path==='/portal/trial' && req.method==='POST') {
     if(!browserWrite(req)) return fail(403,'A same-site JSON request is required.');
     if(secureClaim){const existing=store.getTrial(priorClaim);return existing?send(existing):fail(409,'Your trial has ended. Sign in to choose a plan.');}
-    if(limited('trial:'+clientIp(req),4))return fail(429,'Too many new trial requests. Try again in a minute.');
+    if(limited('trial:'+clientIp(req),1))return fail(429,'Only one trial is available per IP address.');
     const claim='v2_'+randomBytes(32).toString('base64url');
-    const trial=await store.createTrial(claim);
-    if(!trial) return fail(409,'A trial key has already been issued for this browser.');
+    const trial=await store.createTrial(claim,clientIp(req));
+    if(!trial) return fail(409,'A trial key has already been issued for this IP address.');
     res.setHeader('set-cookie',trialCookie+'='+claim+cookieOptions+'; Max-Age=259200');
     const protocol=req.headers['x-forwarded-proto']?.split(',')[0] || 'https';
     return send({key:trial.key,expires:trial.expires,endpoint:`${protocol}://${req.headers.host}/v1`});
@@ -113,13 +113,7 @@ export async function portal(req,res,path,store,readJson,json) {
     if(typeof data.token!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(data.token))return fail(400,'Invalid verification link.');
     return store.confirmRecoveryEmail(session.uid,data.token)?send({}):fail(400,'Verification link is invalid or expired.');
   }
-  if(path==='/portal/rotate-key'){
-    if(!session?.uid)return fail(401,'Sign in required.');
-    if(!Number.isSafeInteger(data.id)||data.id<1)return fail(400,'Invalid key.');
-    if(limited('rotate:'+session.uid,5))return fail(429,'Please wait before rotating another key.');
-    const key=store.rotateKey(session.uid,data.id);
-    return key?send({key}):fail(404,'Key not found or expired.');
-  }
+  if(path==='/portal/rotate-key') return fail(403,'Customer key rotation is not available. Contact support if a replacement is needed.');
   if(path==='/portal/reset-request'){
     if(limited('reset:'+clientIp(req),5))return fail(429,'Please wait before trying again.');
     if(typeof data.email!=='string'||data.email.length>254||!/^\S+@\S+\.\S+$/.test(data.email))return fail(400,'Enter a valid email address.');
