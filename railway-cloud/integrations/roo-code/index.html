@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Use Roo Code with TOKNADO: OpenAI Compatible Setup</title>
+<meta name="description" content="Connect Roo Code to TOKNADO with the OpenAI Compatible provider. Choose it over the OpenAI provider, set model limits, and use profiles per mode.">
+<link rel="canonical" href="https://toknado.up.railway.app/integrations/roo-code/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Use Roo Code with TOKNADO: OpenAI Compatible Setup">
+<meta property="og:description" content="Connect Roo Code to TOKNADO with the OpenAI Compatible provider. Choose it over the OpenAI provider, set model limits, and use profiles per mode.">
+<meta property="og:url" content="https://toknado.up.railway.app/integrations/roo-code/">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="/integrations/assets/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How to use Roo Code with TOKNADO's OpenAI-compatible endpoint", "description": "Connect Roo Code to TOKNADO with the OpenAI Compatible provider. Choose it over the OpenAI provider, set model limits, and use profiles per mode.", "datePublished": "2026-11-10", "dateModified": "2026-11-10", "author": {"@type": "Organization", "name": "Aaron Wise AI"}, "publisher": {"@type": "Organization", "name": "TOKNADO"}, "mainEntityOfPage": "https://toknado.up.railway.app/integrations/roo-code/"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "TOKNADO", "item": "https://toknado.up.railway.app/"}, {"@type": "ListItem", "position": 2, "name": "Integrations", "item": "https://toknado.up.railway.app/integrations/"}, {"@type": "ListItem", "position": 3, "name": "Roo Code", "item": "https://toknado.up.railway.app/integrations/roo-code/"}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "OpenAI or OpenAI Compatible, which should I choose?", "acceptedAnswer": {"@type": "Answer", "text": "For a gateway like TOKNADO, choose OpenAI Compatible. It uses chat completions; the OpenAI provider uses the Responses route."}}, {"@type": "Question", "name": "Can different Roo Code modes use different models?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Use configuration profiles and assign a profile to each mode."}}, {"@type": "Question", "name": "Do I need to set a context window?", "acceptedAnswer": {"@type": "Answer", "text": "It's strongly recommended for custom endpoints, since limits may not be discovered automatically."}}, {"@type": "Question", "name": "Is the free trial enough to test Roo Code?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The three-day trial allows up to 250 requests per rolling hour."}}]}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="https://toknado.up.railway.app/?utm_source=seo&utm_medium=integration&utm_campaign=roo-code&utm_content=nav_brand">&#9673; TOKNADO</a>
+  <nav>
+    <a href="/integrations/">Integrations</a>
+    <a href="https://toknado.up.railway.app/pricing?utm_source=seo&utm_medium=integration&utm_campaign=roo-code&utm_content=nav_pricing">Pricing</a>
+    <a class="btn small" href="https://toknado.up.railway.app/register?utm_source=seo&utm_medium=integration&utm_campaign=roo-code&utm_content=nav_trial">Start free</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="crumbs"><a href="/integrations/">Integrations</a> / Roo Code</p>
+  <article>
+    <p class="kicker">Roo Code + TOKNADO</p>
+    <h1>How to use Roo Code with TOKNADO&#x27;s OpenAI-compatible endpoint</h1>
+    <p>Roo Code is a VS Code coding agent that runs in several modes (code, architect, debug and custom ones) and is model-agnostic: any provider with an OpenAI-compatible API works. TOKNADO qualifies.</p><p>The key decision is which provider type to pick, because Roo has two that look similar and use different API routes. This guide shows the right one for a gateway and how to use profiles to give each mode its own model.</p>
+    <p class="cta-row"><a class="btn" href="https://toknado.up.railway.app/register?utm_source=seo&utm_medium=integration&utm_campaign=roo-code&utm_content=top_trial">Start free trial</a>
+    <a class="btn ghost" href="#setup">Jump to setup</a></p>
+
+    <h2>What you need</h2>
+    <ul><li>VS Code with Roo Code installed.</li><li>Your TOKNADO endpoint and API key.</li><li>One or more model IDs from your TOKNADO dashboard.</li></ul>
+
+    <h2 id="setup">Setup: Roo Code with TOKNADO</h2>
+    <ol class="steps"><li><h3>Open settings and pick the right provider</h3><p>Click the gear icon and set <strong>API Provider</strong> to <strong>OpenAI Compatible</strong>. This uses the chat completions route that gateways implement. The separate &ldquo;OpenAI&rdquo; provider targets the Responses route and is for OpenAI-style endpoints that support it.</p></li><li><h3>Enter the connection details</h3><p>Paste the three values. Pasting avoids the typo and stray-whitespace errors Roo's docs list as common failures.</p><pre><code class="lang-text">API Provider: OpenAI Compatible
+Base URL    : https://toknado.up.railway.app/v1
+API Key     : YOUR_TOKNADO_API_KEY
+Model       : toknado/auto</code></pre></li><li><h3>Set model limits explicitly</h3><p>Open <strong>Model Configuration</strong> and set the context window and max output tokens. A compatible endpoint doesn't guarantee that Roo can discover complete limits.</p></li><li><h3>Optional: one profile per mode</h3><p>Create configuration profiles and assign them to modes. For example, a stronger model for architect mode and a faster one for code mode. Switching is a model-ID change per profile, not a new deployment.</p></li><li><h3>Run a tool-call sanity check</h3><p>Ask Roo to read a file in a scratch project. If it can read and edit, tool calling works end to end through your endpoint.</p></li></ol>
+    
+
+    <h2>Notes for real-world use</h2>
+    <ul><li>Several modes can mean several simultaneous models and many requests. Check the rolling hourly limit on your plan if you run orchestrated multi-step tasks.</li><li>If a model misbehaves with tools, try it in a plain chat first to separate a model problem from a configuration problem.</li><li>Roo's docs advise using the OpenAI Compatible provider if you hit routing issues with the OpenAI provider type.</li></ul>
+
+    <h2>Troubleshooting Roo Code + TOKNADO</h2>
+    <table><thead><tr><th>Symptom</th><th>What to check</th></tr></thead><tbody><tr><td>Connection error</td><td>Verify the Base URL (including <code>/v1</code>) and that the endpoint is reachable from your machine.</td></tr><tr><td>&ldquo;Model not found&rdquo;</td><td>Use the exact ID from your TOKNADO dashboard.</td></tr><tr><td>Strange routing or 404s</td><td>You selected OpenAI instead of OpenAI Compatible. Switch the provider type.</td></tr><tr><td>Truncated or cut-off output</td><td>Set context and max output tokens under Model Configuration.</td></tr><tr><td>401 / invalid key</td><td>Paste the key again with no spaces; confirm your plan or trial is active.</td></tr></tbody></table>
+
+    <h2>FAQ</h2>
+    <details><summary>OpenAI or OpenAI Compatible, which should I choose?</summary><p>For a gateway like TOKNADO, choose OpenAI Compatible. It uses chat completions; the OpenAI provider uses the Responses route.</p></details><details><summary>Can different Roo Code modes use different models?</summary><p>Yes. Use configuration profiles and assign a profile to each mode.</p></details><details><summary>Do I need to set a context window?</summary><p>It's strongly recommended for custom endpoints, since limits may not be discovered automatically.</p></details><details><summary>Is the free trial enough to test Roo Code?</summary><p>Yes. The three-day trial allows up to 250 requests per rolling hour.</p></details>
+  </article>
+  
+<section class="cta" aria-labelledby="cta-h">
+  <h2 id="cta-h">Point Roo Code at TOKNADO</h2>
+  <p>One OpenAI-compatible endpoint, a managed model pool behind it, and usage you can see in the Storm Console. 3-day trial, up to 250 requests per rolling hour.</p>
+  <ul class="plans"><li><strong>Starter</strong> <span>$7.99/mo</span> <em>2,500 requests per rolling hour</em></li><li><strong>Builder</strong> <span>$12.99/mo</span> <em>5,000 requests per rolling hour</em></li><li><strong>Studio</strong> <span>$19.99/mo</span> <em>7,500 requests per rolling hour</em></li><li><strong>Team</strong> <span>$29.99/mo</span> <em>10,000 requests per rolling hour</em></li></ul>
+  <p class="cta-row">
+    <a class="btn" href="https://toknado.up.railway.app/register?utm_source=seo&utm_medium=integration&utm_campaign=roo-code&utm_content=cta_trial">Start free trial</a>
+    <a class="btn ghost" href="https://toknado.up.railway.app/pricing?utm_source=seo&utm_medium=integration&utm_campaign=roo-code&utm_content=cta_pricing">See pricing</a>
+    <a class="btn ghost" href="https://toknado.up.railway.app/setup?utm_source=seo&utm_medium=integration&utm_campaign=roo-code&utm_content=cta_setup">Setup guide</a>
+  </p>
+  <p class="fine">Hourly limits apply over the previous 60 minutes. Service is best effort; upstream availability can reduce throughput.</p>
+</section>
+  <section>
+    <h2>More tools that work with TOKNADO</h2>
+    <ul class="related"><li><a href="/integrations/cline/">Cline + TOKNADO</a></li><li><a href="/integrations/opencode/">OpenCode + TOKNADO</a></li><li><a href="/integrations/aider/">Aider + TOKNADO</a></li><li><a href="/integrations/open-webui/">Open WebUI + TOKNADO</a></li></ul>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>&#9673; TOKNADO &middot; One OpenAI-compatible endpoint for builders.</p>
+  <p class="fine">TOKNADO is an independent service by Aaron Wise AI. Third-party product names are used only to describe compatibility and belong to their owners; TOKNADO is not affiliated with or endorsed by them.</p>
+  <p class="fine">&copy; 2026 Aaron Wise AI</p>
+</footer>
+</body>
+</html>

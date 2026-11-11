@@ -196,6 +196,13 @@ async function handler(req, res) {
     res.writeHead(200,{'content-type':'text/html; charset=utf-8'});
     return res.end(publicPage(path));
   }
+  if(req.method==='GET' && path==='/sitemap-integrations.xml'){
+    res.writeHead(200,{'content-type':'application/xml; charset=utf-8'});return res.end(await readFile(join(ROOT,'sitemap-integrations.xml')));
+  }
+  if(req.method==='GET' && (path==='/integrations/'||/^\/integrations\/[a-z0-9-]+\/$/.test(path)||path==='/integrations/assets/style.css')){
+    const file=path==='/integrations/assets/style.css'?'integrations/assets/style.css':path==='/integrations/'?'integrations/index.html':'integrations/'+path.slice('/integrations/'.length)+'index.html';
+    res.writeHead(200,{'content-type':file.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8'});return res.end(await readFile(join(ROOT,file)));
+  }
   if(req.method==='GET' && path==='/terms'){res.writeHead(200,{'content-type':'text/html; charset=utf-8'});return res.end(termsPage());}
   if(path==='/stripe/webhook' && req.method==='POST') {
     const raw=await readRaw(req); if(!stripeSignatureValid(raw,req.headers['stripe-signature'],process.env.STRIPE_WEBHOOK_SECRET)) return json(res,400,{error:{message:'Invalid Stripe signature.'}});

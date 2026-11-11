@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Use OpenClaw with TOKNADO: OpenAI-Compatible Setup</title>
+<meta name="description" content="Connect OpenClaw to TOKNADO as a custom OpenAI-compatible provider. Wizard and JSON config, the model allowlist step, and fixes for common errors.">
+<link rel="canonical" href="https://toknado.up.railway.app/integrations/openclaw/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Use OpenClaw with TOKNADO: OpenAI-Compatible Setup">
+<meta property="og:description" content="Connect OpenClaw to TOKNADO as a custom OpenAI-compatible provider. Wizard and JSON config, the model allowlist step, and fixes for common errors.">
+<meta property="og:url" content="https://toknado.up.railway.app/integrations/openclaw/">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="/integrations/assets/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How to use OpenClaw with TOKNADO's OpenAI-compatible endpoint", "description": "Connect OpenClaw to TOKNADO as a custom OpenAI-compatible provider. Wizard and JSON config, the model allowlist step, and fixes for common errors.", "datePublished": "2026-11-10", "dateModified": "2026-11-10", "author": {"@type": "Organization", "name": "Aaron Wise AI"}, "publisher": {"@type": "Organization", "name": "TOKNADO"}, "mainEntityOfPage": "https://toknado.up.railway.app/integrations/openclaw/"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "TOKNADO", "item": "https://toknado.up.railway.app/"}, {"@type": "ListItem", "position": 2, "name": "Integrations", "item": "https://toknado.up.railway.app/integrations/"}, {"@type": "ListItem", "position": 3, "name": "OpenClaw", "item": "https://toknado.up.railway.app/integrations/openclaw/"}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Does OpenClaw support custom OpenAI-compatible providers?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Choose Custom provider in <code>openclaw configure</code> and select OpenAI-compatible, or define the provider in the models section of the config with <code>api</code> set to <code>openai-completions</code>."}}, {"@type": "Question", "name": "What goes in the base URL field?", "acceptedAnswer": {"@type": "Answer", "text": "The TOKNADO endpoint from your dashboard, including its API path. Do not append <code>/chat/completions</code>; the client adds that."}}, {"@type": "Question", "name": "Can I keep my other OpenClaw providers?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. With <code>mode</code> set to <code>merge</code> the TOKNADO provider is added alongside existing ones, and you switch with <code>openclaw models set</code>."}}, {"@type": "Question", "name": "Can I try this before paying?", "acceptedAnswer": {"@type": "Answer", "text": "The TOKNADO setup guide offers a three-day trial with up to 250 requests per rolling hour, which is enough to confirm OpenClaw connects."}}]}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="https://toknado.up.railway.app/?utm_source=seo&utm_medium=integration&utm_campaign=openclaw&utm_content=nav_brand">&#9673; TOKNADO</a>
+  <nav>
+    <a href="/integrations/">Integrations</a>
+    <a href="https://toknado.up.railway.app/pricing?utm_source=seo&utm_medium=integration&utm_campaign=openclaw&utm_content=nav_pricing">Pricing</a>
+    <a class="btn small" href="https://toknado.up.railway.app/register?utm_source=seo&utm_medium=integration&utm_campaign=openclaw&utm_content=nav_trial">Start free</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="crumbs"><a href="/integrations/">Integrations</a> / OpenClaw</p>
+  <article>
+    <p class="kicker">OpenClaw + TOKNADO</p>
+    <h1>How to use OpenClaw with TOKNADO&#x27;s OpenAI-compatible endpoint</h1>
+    <p>OpenClaw lets you plug in any endpoint that speaks the OpenAI chat completions format as a <strong>custom provider</strong>. TOKNADO is exactly that: one OpenAI-compatible endpoint in front of a managed model pool, so OpenClaw gets a single base URL and key instead of several provider accounts.</p><p>This guide covers both ways to add it: the interactive wizard (fastest) and the manual config for people who keep their setup in version control. It also covers the one step people miss: allowing the model after you define the provider.</p>
+    <p class="cta-row"><a class="btn" href="https://toknado.up.railway.app/register?utm_source=seo&utm_medium=integration&utm_campaign=openclaw&utm_content=top_trial">Start free trial</a>
+    <a class="btn ghost" href="#setup">Jump to setup</a></p>
+
+    <h2>What you need</h2>
+    <ul><li>A TOKNADO API key and endpoint from your dashboard (the trial is enough to test).</li><li>OpenClaw installed and able to run <code>openclaw configure</code>.</li><li>A model ID to use. Copy it exactly as it appears in your TOKNADO dashboard.</li></ul>
+
+    <h2 id="setup">Setup: OpenClaw with TOKNADO</h2>
+    <ol class="steps"><li><h3>Run the configuration wizard</h3><p>On an existing install this adds a provider without disturbing what you already have.</p><pre><code class="lang-bash">openclaw configure</code></pre></li><li><h3>Choose the custom provider path</h3><p>When asked where the Gateway will run, choose <strong>Local</strong>. For the section, choose <strong>Model</strong>. For Model / Auth Provider, choose <strong>Custom provider</strong>.</p></li><li><h3>Enter the TOKNADO details</h3><p>Use these values at the prompts. For compatibility, pick <strong>OpenAI-compatible</strong>. The base URL must include the API path (normally ending in <code>/v1</code>).</p><pre><code class="lang-text">API Base URL  : https://toknado.up.railway.app/v1
+API key       : YOUR_TOKNADO_API_KEY
+Compatibility : OpenAI-compatible
+Model ID      : toknado/auto</code></pre></li><li><h3>Or edit the config directly</h3><p>If you prefer manual config, add a provider entry. <code>api</code> must be <code>openai-completions</code> for OpenAI-compatible endpoints.</p><pre><code class="lang-json">{
+  &quot;models&quot;: {
+    &quot;mode&quot;: &quot;merge&quot;,
+    &quot;providers&quot;: {
+      &quot;toknado&quot;: {
+        &quot;baseUrl&quot;: &quot;https://toknado.up.railway.app/v1&quot;,
+        &quot;apiKey&quot;: &quot;YOUR_TOKNADO_API_KEY&quot;,
+        &quot;api&quot;: &quot;openai-completions&quot;,
+        &quot;models&quot;: [
+          { &quot;id&quot;: &quot;toknado/auto&quot;, &quot;name&quot;: &quot;TOKNADO&quot; }
+        ]
+      }
+    }
+  }
+}</code></pre></li><li><h3>Select the model and test</h3><p>Model references use the form <code>provider/model-id</code>. Set it as default, then open the dashboard and send a message.</p><pre><code class="lang-bash">openclaw models set toknado/toknado/auto
+openclaw dashboard</code></pre></li></ol>
+    <aside class="callout"><strong>Don&#x27;t skip the allowlist.</strong> Defining the provider is only half of the setup in some OpenClaw versions. If you add the provider by hand and then see a &ldquo;model not allowed&rdquo; style error, add the model to the agent's allowed models list and apply the config. The wizard handles this for you.</aside>
+
+    <h2>Notes for real-world use</h2>
+    <ul><li>Agent tools make many model calls per task. TOKNADO limits requests over a rolling 60 minutes, so a busy OpenClaw gateway on a small plan is the first place you would notice the cap. The plan table below lists each hourly limit.</li><li>&ldquo;OpenAI-compatible&rdquo; guarantees the chat completions shape, not every optional feature. If tool calls or reasoning controls misbehave, test with a plain prompt first, then add features back one at a time.</li><li>Keep the API key out of version control. Use an environment variable or your secrets manager and reference it from the config where OpenClaw supports that.</li></ul>
+
+    <h2>Troubleshooting OpenClaw + TOKNADO</h2>
+    <table><thead><tr><th>Symptom</th><th>What to check</th></tr></thead><tbody><tr><td>404 or &ldquo;not found&rdquo;</td><td>The base URL is missing its API path. It should end where <code>/chat/completions</code> would be appended, usually <code>/v1</code>.</td></tr><tr><td>&ldquo;Model not allowed&rdquo;</td><td>The provider exists but the model is not in the allowlist. Add <code>toknado/toknado/auto</code> and apply the config.</td></tr><tr><td>Unknown model or 400</td><td>The model ID must match your dashboard exactly, including any prefix or version tag.</td></tr><tr><td>401 / invalid key</td><td>Re-copy the key from the dashboard, no trailing space, and confirm your plan or trial is active.</td></tr><tr><td>429 or slowdowns</td><td>You hit the rolling hourly limit or upstream availability dipped. Check usage in the Storm Console and consider a larger plan.</td></tr></tbody></table>
+
+    <h2>FAQ</h2>
+    <details><summary>Does OpenClaw support custom OpenAI-compatible providers?</summary><p>Yes. Choose Custom provider in <code>openclaw configure</code> and select OpenAI-compatible, or define the provider in the models section of the config with <code>api</code> set to <code>openai-completions</code>.</p></details><details><summary>What goes in the base URL field?</summary><p>The TOKNADO endpoint from your dashboard, including its API path. Do not append <code>/chat/completions</code>; the client adds that.</p></details><details><summary>Can I keep my other OpenClaw providers?</summary><p>Yes. With <code>mode</code> set to <code>merge</code> the TOKNADO provider is added alongside existing ones, and you switch with <code>openclaw models set</code>.</p></details><details><summary>Can I try this before paying?</summary><p>The TOKNADO setup guide offers a three-day trial with up to 250 requests per rolling hour, which is enough to confirm OpenClaw connects.</p></details>
+  </article>
+  
+<section class="cta" aria-labelledby="cta-h">
+  <h2 id="cta-h">Point OpenClaw at TOKNADO</h2>
+  <p>One OpenAI-compatible endpoint, a managed model pool behind it, and usage you can see in the Storm Console. 3-day trial, up to 250 requests per rolling hour.</p>
+  <ul class="plans"><li><strong>Starter</strong> <span>$7.99/mo</span> <em>2,500 requests per rolling hour</em></li><li><strong>Builder</strong> <span>$12.99/mo</span> <em>5,000 requests per rolling hour</em></li><li><strong>Studio</strong> <span>$19.99/mo</span> <em>7,500 requests per rolling hour</em></li><li><strong>Team</strong> <span>$29.99/mo</span> <em>10,000 requests per rolling hour</em></li></ul>
+  <p class="cta-row">
+    <a class="btn" href="https://toknado.up.railway.app/register?utm_source=seo&utm_medium=integration&utm_campaign=openclaw&utm_content=cta_trial">Start free trial</a>
+    <a class="btn ghost" href="https://toknado.up.railway.app/pricing?utm_source=seo&utm_medium=integration&utm_campaign=openclaw&utm_content=cta_pricing">See pricing</a>
+    <a class="btn ghost" href="https://toknado.up.railway.app/setup?utm_source=seo&utm_medium=integration&utm_campaign=openclaw&utm_content=cta_setup">Setup guide</a>
+  </p>
+  <p class="fine">Hourly limits apply over the previous 60 minutes. Service is best effort; upstream availability can reduce throughput.</p>
+</section>
+  <section>
+    <h2>More tools that work with TOKNADO</h2>
+    <ul class="related"><li><a href="/integrations/hermes-agent/">Hermes Agent + TOKNADO</a></li><li><a href="/integrations/opencode/">OpenCode + TOKNADO</a></li><li><a href="/integrations/open-webui/">Open WebUI + TOKNADO</a></li><li><a href="/integrations/cline/">Cline + TOKNADO</a></li></ul>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>&#9673; TOKNADO &middot; One OpenAI-compatible endpoint for builders.</p>
+  <p class="fine">TOKNADO is an independent service by Aaron Wise AI. Third-party product names are used only to describe compatibility and belong to their owners; TOKNADO is not affiliated with or endorsed by them.</p>
+  <p class="fine">&copy; 2026 Aaron Wise AI</p>
+</footer>
+</body>
+</html>
