@@ -1,5 +1,5 @@
 (()=>{
-const canCustomize=['/account','/admin','/admin/users','/dashboard'].includes(location.pathname);
+const canCustomize=['/account','/admin/users','/dashboard'].includes(location.pathname);
 const header=document.querySelector('header'),nav=header?.querySelector('nav');
 if(header&&nav){
   const toggle=document.createElement('button');toggle.type='button';toggle.className='mobile-nav-toggle';toggle.textContent='Menu ☰';toggle.setAttribute('aria-expanded','false');nav.id=nav.id||'primary-navigation';toggle.setAttribute('aria-controls',nav.id);header.insertBefore(toggle,nav);
