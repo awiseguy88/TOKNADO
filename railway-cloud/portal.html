@@ -104,7 +104,7 @@ function metrics(parent,values){
   for(const [label,value] of values){const card=el('div',undefined,'metric panel');card.append(el('small',label),el('strong',Number(value).toLocaleString()));block.append(card)}
 }
 function guide(){
-  $('title').textContent='Setup guide'; link(nav,'Home','/'); link(nav,'Pricing','/pricing'); link(nav,'Sign in','/login'); link(nav,'Create account','/register');
+  $('title').textContent='Setup guide'; link(nav,'Home','/'); link(nav,'Pricing','/pricing'); link(nav,'Account','/login');
   api('/portal/session').then(s=>{if(!s.signedIn)return;nav.querySelectorAll('a[href="/login"],a[href="/register"]').forEach(a=>a.remove());link(nav,s.admin?'Admin dashboard':'My account',s.admin?'/dashboard':'/account');signOut()}).catch(()=>{});
   const p=el('section',undefined,'panel');content.append(p);p.append(el('h2','Connect any OpenAI-compatible tool'),el('p','Set the base URL to the endpoint below and use your assigned API key. TOKNADO intelligently routes requests through its managed model pool.'),el('h3','Endpoint URL'),el('code',location.origin+'/v1'),el('h3','Routing'),el('code','Managed model pool'));
   const trial=el('section',undefined,'panel');content.append(trial);
