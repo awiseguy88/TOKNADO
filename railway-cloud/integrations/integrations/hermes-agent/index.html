@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Use Hermes Agent with TOKNADO: Custom Endpoint Setup</title>
+<meta name="description" content="Set up Hermes Agent (Nous Research) with TOKNADO as a custom OpenAI-compatible endpoint using the setup wizard, .env or config.yaml. Includes tests and fixes.">
+<link rel="canonical" href="https://toknado.up.railway.app/integrations/hermes-agent/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Use Hermes Agent with TOKNADO: Custom Endpoint Setup">
+<meta property="og:description" content="Set up Hermes Agent (Nous Research) with TOKNADO as a custom OpenAI-compatible endpoint using the setup wizard, .env or config.yaml. Includes tests and fixes.">
+<meta property="og:url" content="https://toknado.up.railway.app/integrations/hermes-agent/">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="/integrations/assets/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How to use Hermes Agent with TOKNADO as a custom endpoint", "description": "Set up Hermes Agent (Nous Research) with TOKNADO as a custom OpenAI-compatible endpoint using the setup wizard, .env or config.yaml. Includes tests and fixes.", "datePublished": "2026-11-10", "dateModified": "2026-11-10", "author": {"@type": "Organization", "name": "Aaron Wise AI"}, "publisher": {"@type": "Organization", "name": "TOKNADO"}, "mainEntityOfPage": "https://toknado.up.railway.app/integrations/hermes-agent/"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "TOKNADO", "item": "https://toknado.up.railway.app/"}, {"@type": "ListItem", "position": 2, "name": "Integrations", "item": "https://toknado.up.railway.app/integrations/"}, {"@type": "ListItem", "position": 3, "name": "Hermes Agent", "item": "https://toknado.up.railway.app/integrations/hermes-agent/"}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Can Hermes Agent use a custom OpenAI-compatible API?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Hermes supports a custom endpoint configured with a base URL and key, for example via <code>OPENAI_BASE_URL</code> and <code>OPENAI_API_KEY</code> in <code>~/.hermes/.env</code>."}}, {"@type": "Question", "name": "Where does Hermes store its settings?", "acceptedAnswer": {"@type": "Answer", "text": "In <code>~/.hermes/</code>: <code>config.yaml</code> for settings, <code>.env</code> for keys, and <code>auth.json</code> for OAuth credentials."}}, {"@type": "Question", "name": "Do I need a Nous Portal subscription?", "acceptedAnswer": {"@type": "Answer", "text": "No. Nous Portal is one option; a custom endpoint like TOKNADO is another, and you can switch between them."}}, {"@type": "Question", "name": "How do I switch back?", "acceptedAnswer": {"@type": "Answer", "text": "Run <code>hermes setup model</code> again and choose a different provider."}}]}</script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="https://toknado.up.railway.app/?utm_source=seo&utm_medium=integration&utm_campaign=hermes-agent&utm_content=nav_brand">&#9673; TOKNADO</a>
+  <nav>
+    <a href="/integrations/">Integrations</a>
+    <a href="https://toknado.up.railway.app/pricing?utm_source=seo&utm_medium=integration&utm_campaign=hermes-agent&utm_content=nav_pricing">Pricing</a>
+    <a class="btn small" href="https://toknado.up.railway.app/register?utm_source=seo&utm_medium=integration&utm_campaign=hermes-agent&utm_content=nav_trial">Start free</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="crumbs"><a href="/integrations/">Integrations</a> / Hermes Agent</p>
+  <article>
+    <p class="kicker">Hermes Agent + TOKNADO</p>
+    <h1>How to use Hermes Agent with TOKNADO as a custom endpoint</h1>
+    <p>Hermes Agent, the open-source agent from Nous Research, can run against a Nous Portal subscription, OpenRouter, or a <strong>custom endpoint</strong> that implements the OpenAI chat completions API. TOKNADO fits that last option, so you can run Hermes on a single endpoint and key.</p><p>Below are the three ways to point Hermes at TOKNADO (wizard, <code>.env</code>, <code>config.yaml</code>), how to confirm it works, and what to check when it doesn't.</p>
+    <p class="cta-row"><a class="btn" href="https://toknado.up.railway.app/register?utm_source=seo&utm_medium=integration&utm_campaign=hermes-agent&utm_content=top_trial">Start free trial</a>
+    <a class="btn ghost" href="#setup">Jump to setup</a></p>
+
+    <h2>What you need</h2>
+    <ul><li>Hermes Agent installed (the installer puts its files under <code>~/.hermes/</code>).</li><li>Your TOKNADO endpoint and API key from the dashboard.</li><li>A model ID copied from your TOKNADO dashboard.</li></ul>
+
+    <h2 id="setup">Setup: Hermes Agent with TOKNADO</h2>
+    <ol class="steps"><li><h3>Option A: use the setup wizard</h3><p>Run the model setup and pick <strong>Custom endpoint (enter URL manually)</strong>. Enter the TOKNADO base URL, your key, and the model name when prompted.</p><pre><code class="lang-bash">hermes setup model</code></pre></li><li><h3>Option B: set environment variables</h3><p>Hermes reads custom endpoint settings from <code>~/.hermes/.env</code>.</p><pre><code class="lang-bash"># ~/.hermes/.env
+OPENAI_BASE_URL=https://toknado.up.railway.app/v1
+OPENAI_API_KEY=YOUR_TOKNADO_API_KEY</code></pre></li><li><h3>Option C: edit config.yaml</h3><p>Set the provider to <code>custom</code> and give it the base URL and default model in <code>~/.hermes/config.yaml</code>. Keep the key in <code>.env</code> rather than the YAML.</p><pre><code class="lang-yaml">model:
+  default: &quot;toknado/auto&quot;
+  provider: &quot;custom&quot;
+  base_url: &quot;https://toknado.up.railway.app/v1&quot;</code></pre></li><li><h3>Start Hermes and send a test message</h3><p>Launch it and ask for something small. A reply means the endpoint, key and model are all correct.</p><pre><code class="lang-bash">hermes</code></pre></li></ol>
+    <aside class="callout"><strong>Some Hermes tools use OpenRouter separately.</strong> Hermes documents that features such as vision, web summarization and mixture-of-agents can call OpenRouter independently, even when your main model is a custom endpoint. If a side feature fails while chat works, that is where to look.</aside>
+
+    <h2>Notes for real-world use</h2>
+    <ul><li>Hermes is built for long-running, tool-heavy sessions, so it can consume requests quickly. Pick a plan whose rolling hourly limit matches how often you run it.</li><li>Use <code>hermes config edit</code> to change settings later, or re-run <code>hermes setup model</code> to switch models without reinstalling.</li><li>Don't commit <code>~/.hermes/.env</code> or any file holding your key.</li></ul>
+
+    <h2>Troubleshooting Hermes Agent + TOKNADO</h2>
+    <table><thead><tr><th>Symptom</th><th>What to check</th></tr></thead><tbody><tr><td>Wizard doesn't list your endpoint</td><td>Choose the custom/manual endpoint entry near the bottom of the provider list rather than a named provider.</td></tr><tr><td>401 or &ldquo;invalid API key&rdquo;</td><td>Check <code>OPENAI_API_KEY</code> in <code>~/.hermes/.env</code> holds the TOKNADO key, not an old OpenAI key.</td></tr><tr><td>404 or connection error</td><td>Confirm <code>OPENAI_BASE_URL</code> includes the API path (normally <code>/v1</code>) and has no trailing <code>/chat/completions</code>.</td></tr><tr><td>Model not found</td><td>The default model in <code>config.yaml</code> must match a model ID from your dashboard exactly.</td></tr><tr><td>Chat works but a side tool fails</td><td>That feature may be calling OpenRouter on its own; set an OpenRouter key for it or skip the feature.</td></tr></tbody></table>
+
+    <h2>FAQ</h2>
+    <details><summary>Can Hermes Agent use a custom OpenAI-compatible API?</summary><p>Yes. Hermes supports a custom endpoint configured with a base URL and key, for example via <code>OPENAI_BASE_URL</code> and <code>OPENAI_API_KEY</code> in <code>~/.hermes/.env</code>.</p></details><details><summary>Where does Hermes store its settings?</summary><p>In <code>~/.hermes/</code>: <code>config.yaml</code> for settings, <code>.env</code> for keys, and <code>auth.json</code> for OAuth credentials.</p></details><details><summary>Do I need a Nous Portal subscription?</summary><p>No. Nous Portal is one option; a custom endpoint like TOKNADO is another, and you can switch between them.</p></details><details><summary>How do I switch back?</summary><p>Run <code>hermes setup model</code> again and choose a different provider.</p></details>
+  </article>
+  
+<section class="cta" aria-labelledby="cta-h">
+  <h2 id="cta-h">Point Hermes Agent at TOKNADO</h2>
+  <p>One OpenAI-compatible endpoint, a managed model pool behind it, and usage you can see in the Storm Console. 3-day trial, up to 250 requests per rolling hour.</p>
+  <ul class="plans"><li><strong>Starter</strong> <span>$7.99/mo</span> <em>2,500 requests per rolling hour</em></li><li><strong>Builder</strong> <span>$12.99/mo</span> <em>5,000 requests per rolling hour</em></li><li><strong>Studio</strong> <span>$19.99/mo</span> <em>7,500 requests per rolling hour</em></li><li><strong>Team</strong> <span>$29.99/mo</span> <em>10,000 requests per rolling hour</em></li></ul>
+  <p class="cta-row">
+    <a class="btn" href="https://toknado.up.railway.app/register?utm_source=seo&utm_medium=integration&utm_campaign=hermes-agent&utm_content=cta_trial">Start free trial</a>
+    <a class="btn ghost" href="https://toknado.up.railway.app/pricing?utm_source=seo&utm_medium=integration&utm_campaign=hermes-agent&utm_content=cta_pricing">See pricing</a>
+    <a class="btn ghost" href="https://toknado.up.railway.app/setup?utm_source=seo&utm_medium=integration&utm_campaign=hermes-agent&utm_content=cta_setup">Setup guide</a>
+  </p>
+  <p class="fine">Hourly limits apply over the previous 60 minutes. Service is best effort; upstream availability can reduce throughput.</p>
+</section>
+  <section>
+    <h2>More tools that work with TOKNADO</h2>
+    <ul class="related"><li><a href="/integrations/openclaw/">OpenClaw + TOKNADO</a></li><li><a href="/integrations/opencode/">OpenCode + TOKNADO</a></li><li><a href="/integrations/codex-cli/">Codex CLI + TOKNADO</a></li><li><a href="/integrations/aider/">Aider + TOKNADO</a></li></ul>
+  </section>
+</main>
+
+<footer class="foot">
+  <div><a class="brand" href="/">&#9673; TOKNADO</a><p class="fine">One OpenAI-compatible endpoint for builders.</p></div>
+  <div><strong>Product</strong><a href="/integrations/">Integrations</a><a href="/pricing">Pricing</a><a href="/setup">Setup guide</a></div>
+  <div><strong>Company</strong><a href="/terms">Terms of Service</a><a href="mailto:aaronwise@aaronwiseai.com">Contact support</a></div>
+  <div><strong>Follow</strong><a href="https://www.linkedin.com/in/aaron-wise-31b00349/">LinkedIn</a><a href="https://x.com/AaronWiseAI">X</a><a href="https://www.threads.net/@open.clawsetup">Threads</a></div>
+  <p class="copyright">TOKNADO is an independent service by Aaron Wise AI. Third-party product names are used only to describe compatibility and belong to their owners. &copy; 2026 Aaron Wise AI</p>
+</footer>
+</body>
+</html>
