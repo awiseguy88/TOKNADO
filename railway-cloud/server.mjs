@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { publicPage } from './public-site.mjs';
+import { termsPage } from './terms.mjs';
 import { applyStripeEvent } from './billing.mjs';
 import { welcomeMailer } from './welcome.mjs';
 import { DatabaseSync, backup } from 'node:sqlite';
@@ -195,6 +196,7 @@ async function handler(req, res) {
     res.writeHead(200,{'content-type':'text/html; charset=utf-8'});
     return res.end(publicPage(path));
   }
+  if(req.method==='GET' && path==='/terms'){res.writeHead(200,{'content-type':'text/html; charset=utf-8'});return res.end(termsPage());}
   if(path==='/stripe/webhook' && req.method==='POST') {
     const raw=await readRaw(req); if(!stripeSignatureValid(raw,req.headers['stripe-signature'],process.env.STRIPE_WEBHOOK_SECRET)) return json(res,400,{error:{message:'Invalid Stripe signature.'}});
     let event;try{event=JSON.parse(raw)}catch{return json(res,400,{error:{message:'Invalid webhook payload.'}})}
